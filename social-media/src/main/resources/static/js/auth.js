@@ -4,7 +4,7 @@ function signIn(event) {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     
-    fetch('/api/1.0/user/signin', {
+    fetch('/api/1.0/auth/signin', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -32,7 +32,7 @@ function signUp(event) {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     
-    fetch('/api/1.0/user/signup', {
+    fetch('/api/1.0/auth/signup', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

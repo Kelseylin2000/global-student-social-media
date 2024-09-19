@@ -22,9 +22,7 @@ function getUserNameByUserId(userId, callback) {
     if (userNameCache[userId]) {
         callback(userNameCache[userId]);
     } else {
-        axios.get('/api/1.0/user/getUserNameByUserId', {
-            params: { userId: userId },
-        })
+        axios.get(`/api/1.0/users/${userId}/username`)
         .then(function(response) {
             var userName = response.data.data;
             userNameCache[userId] = userName;
