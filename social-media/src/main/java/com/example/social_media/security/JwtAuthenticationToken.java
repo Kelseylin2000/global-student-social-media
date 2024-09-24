@@ -3,7 +3,7 @@ package com.example.social_media.security;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 
-import com.example.social_media.dto.UserDto;
+import com.example.social_media.dto.user.UserDto;
 
 import java.util.Collection;
 

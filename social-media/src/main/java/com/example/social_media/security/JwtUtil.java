@@ -1,12 +1,13 @@
 package com.example.social_media.security;
 
-import com.example.social_media.dto.UserDto;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import com.example.social_media.dto.user.UserDto;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -25,10 +26,7 @@ public class JwtUtil {
     public String generateToken(UserDto userDto) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userDto.getUserId());
-        claims.put("name", userDto.getName());
         claims.put("email", userDto.getEmail());
-        claims.put("fromSchoolId", userDto.getFromSchoolId());
-        claims.put("toSchoolId", userDto.getToSchoolId());
 
         return Jwts.builder()
             .setClaims(claims)
@@ -59,10 +57,7 @@ public class JwtUtil {
         }
         UserDto userDto = new UserDto();
         userDto.setUserId(((Number) claims.get("userId")).longValue());
-        userDto.setName((String) claims.get("name"));
         userDto.setEmail((String) claims.get("email"));
-        userDto.setFromSchoolId(claims.get("fromSchoolId") != null ? ((Number) claims.get("fromSchoolId")).longValue() : null);
-        userDto.setToSchoolId(claims.get("toSchoolId") != null ? ((Number) claims.get("toSchoolId")).longValue() : null);
         return userDto;
     }
 
