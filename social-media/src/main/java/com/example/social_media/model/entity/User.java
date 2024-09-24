@@ -6,9 +6,6 @@ import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-import com.example.social_media.model.enumtype.Phase;
-
-
 @Entity
 @Table(name = "user")
 @Data
@@ -28,6 +25,8 @@ public class User {
 
     private String password;
 
+    private String introduction;
+
     private String fromSchoolEmail;
 
     private String toSchoolEmail;
@@ -39,9 +38,6 @@ public class User {
     @ManyToOne
     @JoinColumn(name = "to_school_id")
     private School toSchool;
-
-    @Enumerated(EnumType.STRING)
-    private Phase phase;
 
     private LocalDateTime lastLogin;
 

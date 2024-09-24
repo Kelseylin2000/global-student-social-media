@@ -1,11 +1,19 @@
 package com.example.social_media.service;
 
-import com.example.social_media.dto.auth.AuthResponseDto;
-import com.example.social_media.dto.auth.SignInRequestDto;
-import com.example.social_media.dto.auth.SignUpRequestDto;
+import java.util.List;
+
+import com.example.social_media.dto.user.CurrentUserProfileDto;
+import com.example.social_media.dto.user.TargetUserProfileDto;
+import com.example.social_media.dto.user.UserProfileUpdateRequestDto;
+import com.example.social_media.dto.user.UserSearchResultDto;
 
 public interface UserService {
-    AuthResponseDto signUp(SignUpRequestDto signUpRequest);
-    AuthResponseDto signIn(SignInRequestDto signInRequest);
-    String getUserNameByUserId(Long userId);
+    List<UserSearchResultDto> findUsersFromOrToTheSameSchool();
+    List<UserSearchResultDto> searchUsersByName(String keyword);
+    
+    CurrentUserProfileDto getUserProfileById();
+    TargetUserProfileDto getUserProfileById(Long userId);
+
+    void updateUserProfile(UserProfileUpdateRequestDto profileUpdateRequest);
+    void updateInterestedSchools(List<Integer> schoolIds);
 }
