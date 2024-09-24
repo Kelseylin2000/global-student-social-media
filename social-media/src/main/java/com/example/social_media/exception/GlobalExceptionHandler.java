@@ -3,6 +3,7 @@ package com.example.social_media.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
 import com.example.social_media.dto.ErrorResponseDto;
+
+import jakarta.persistence.EntityNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -43,16 +46,24 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(new ErrorResponseDto("Content-Type is not supported. Please use application/json."), HttpStatus.BAD_REQUEST);
     }    
 
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<Object> handleEntityNotFoundException(EntityNotFoundException ex) {
+        return new ResponseEntity<>(new ErrorResponseDto(ex.getMessage()), HttpStatus.NOT_FOUND);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDto> handleException(Exception ex) {
-        // return new ResponseEntity<>(new ErrorResponseDto("An unexpected error occurred"), HttpStatus.INTERNAL_SERVER_ERROR);
-        // return new ResponseEntity<>(new ErrorResponseDto(ex.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
-
+        
         ErrorResponseDto errorResponse = new ErrorResponseDto(ex.getMessage());
     
         return ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .contentType(MediaType.APPLICATION_JSON)
             .body(errorResponse);
-        }
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponseDto> handleAccessDeniedException(AccessDeniedException ex) {
+        return new ResponseEntity<>(new ErrorResponseDto(ex.getMessage()), HttpStatus.FORBIDDEN);
+    }
 }
