@@ -12,15 +12,30 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
     
     UserNode findByUserId(Long userId);
     List<UserNode> findByUserIdIn(Set<Long> userIds);
+    
     @Query("""
-    MATCH (u:UserNode {userId: $currentUserId}), (target:UserNode {userId: $targetUserId})
-    OPTIONAL MATCH (u)-[:FRIENDS]->(mutualFriend:UserNode)<-[:FRIENDS]-(target)
-    OPTIONAL MATCH (u)-[:INTERESTED_IN]->(mutualInterest:InterestNode)<-[:INTERESTED_IN]-(target)
-    RETURN target,
-           collect(DISTINCT mutualFriend.name) AS mutualFriends,
-           collect(DISTINCT mutualInterest.interest) AS mutualInterests
-    """)
+        MATCH (u:UserNode {userId: $currentUserId}), (target:UserNode {userId: $targetUserId})
+        OPTIONAL MATCH (u)-[:FRIENDS]->(mutualFriend:UserNode)<-[:FRIENDS]-(target)
+        OPTIONAL MATCH (u)-[:INTERESTED_IN]->(mutualInterest:InterestNode)<-[:INTERESTED_IN]-(target)
+    
+        OPTIONAL MATCH (u)-[friendRel:FRIENDS]->(target)
+        OPTIONAL MATCH (u)-[sentRel:FRIEND_REQUEST_SENT]->(target)
+        OPTIONAL MATCH (u)-[receivedRel:FRIEND_REQUEST_RECEIVED]->(target)
+    
+        WITH target,
+               collect(DISTINCT mutualFriend.name) AS mutualFriends,
+               collect(DISTINCT mutualInterest.interest) AS mutualInterests,
+               CASE 
+                   WHEN friendRel IS NOT NULL THEN 'FRIENDS'
+                   WHEN sentRel IS NOT NULL THEN 'FRIEND_REQUEST_SENT'
+                   WHEN receivedRel IS NOT NULL THEN 'FRIEND_REQUEST_RECEIVED'
+                   ELSE 'NO_RELATION'
+               END AS relationship
+    
+        RETURN target, mutualFriends, mutualInterests, relationship;
+        """)
     UserNodeWithMutualInfoDto findMutualInfoBetweenUsers(Long currentUserId, Long targetUserId);
+    
 
 
     @Query("""

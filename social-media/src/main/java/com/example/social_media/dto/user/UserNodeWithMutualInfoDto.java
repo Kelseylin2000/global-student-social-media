@@ -13,8 +13,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserNodeWithMutualInfoDto {
 
-    UserNode userNode;
+    UserNode target;
 
     private List<String> mutualFriends;
     private List<String> mutualInterests;
+    private String relationship;
 }

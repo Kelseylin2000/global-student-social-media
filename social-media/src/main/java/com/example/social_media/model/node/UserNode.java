@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.Set;
+import java.util.Objects;
 
 @Data
 @NoArgsConstructor
@@ -23,6 +24,19 @@ public class UserNode {
     @Id
     @GeneratedValue
     private Long id;
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserNode userNode = (UserNode) o;
+        return Objects.equals(id, userNode.id);
+    }
     
     private Long userId;
     private String name;

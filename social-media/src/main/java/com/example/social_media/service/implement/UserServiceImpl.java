@@ -87,7 +87,7 @@ public class UserServiceImpl implements UserService{
     private List<UserSearchResultDto> convertToDto(List<UserNodeWithMutualInfoDto> users) {
     return users.stream()
             .map(user -> {
-                UserNode userNode = user.getUserNode(); 
+                UserNode userNode = user.getTarget(); 
                 return new UserSearchResultDto(
                     userNode.getUserId(),
                     userNode.getName(),
@@ -122,14 +122,14 @@ public class UserServiceImpl implements UserService{
         CurrentUserProfileDto currentUserProfile = new CurrentUserProfileDto(
             userId,
             userNode.getName(),
-            userNode.getPhase().toString(),
+            userNode.getPhase() != null ? userNode.getPhase().toString() : null,
             user.getIntroduction(),
             user.getFromSchoolEmail(),
             user.getToSchoolEmail(),
-            userNode.getOriginSchool().getSchoolId(),
-            userNode.getOriginSchool().getSchoolName(),
-            userNode.getExchangeSchool().getSchoolId(),
-            userNode.getExchangeSchool().getSchoolName(),
+            userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolId() : null,
+            userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null,
+            userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolId() : null,
+            userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null,
             interests,
             interestedSchools
         );
@@ -143,19 +143,20 @@ public class UserServiceImpl implements UserService{
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
         UserNodeWithMutualInfoDto userNodeWithMutualInfo = userNodeRepository.findMutualInfoBetweenUsers(currentUserId, userId);
-        UserNode userNode = userNodeWithMutualInfo.getUserNode();
+        UserNode userNode = userNodeWithMutualInfo.getTarget();
         
         TargetUserProfileDto targetUserProfileDto = new TargetUserProfileDto(
             userId,
             userNode.getName(),
-            userNode.getPhase().toString(),
+            userNode.getPhase() != null ? userNode.getPhase().toString() : null,
             user.getIntroduction(),
-            userNode.getOriginSchool().getSchoolId(),
-            userNode.getOriginSchool().getSchoolName(),
-            userNode.getExchangeSchool().getSchoolId(),
-            userNode.getExchangeSchool().getSchoolName(),
+            userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolId() : null,
+            userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null,
+            userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolId() : null,
+            userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null,
             userNodeWithMutualInfo.getMutualFriends(),
-            userNodeWithMutualInfo.getMutualInterests()
+            userNodeWithMutualInfo.getMutualInterests(),
+            userNodeWithMutualInfo.getRelationship()
         );
 
         return targetUserProfileDto;

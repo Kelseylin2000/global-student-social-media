@@ -23,4 +23,6 @@ public class TargetUserProfileDto {
 
     private List<String> mutualFriends;
     private List<String> mutualInterests;
+    
+    private String relationship;
 }
