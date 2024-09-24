@@ -1,7 +1,5 @@
 package com.example.social_media.dto.auth;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -25,6 +23,5 @@ public class SignInRequestDto {
     @Size(max = 20, message = "password should not be longer than 20 characters")
     private String password;
 
-    @JsonProperty("access_token")
     private String accessToken;
 }
