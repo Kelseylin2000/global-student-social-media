@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.social_media.dto.ApiResponseDto;
 import com.example.social_media.dto.ErrorResponseDto;
-import com.example.social_media.dto.UserDto;
-import com.example.social_media.model.document.ChatSession;
-import com.example.social_media.model.document.Message;
+import com.example.social_media.dto.chat.ChatSessionDto;
+import com.example.social_media.dto.chat.MessageDto;
+import com.example.social_media.dto.user.UserDto;
 import com.example.social_media.service.ChatService;
 
 import java.util.List;
@@ -22,19 +22,16 @@ import java.util.List;
 @RequestMapping("/api/1.0/chat")
 public class ChatController {
 
-    private ChatService chatService;
+    private final ChatService chatService;
 
     public ChatController(ChatService chatService){
         this.chatService = chatService;
     }
 
     @GetMapping("/sessions")
-    public ResponseEntity<ApiResponseDto<List<ChatSession>>> getChatSessions() {
+    public ResponseEntity<ApiResponseDto<List<ChatSessionDto>>> getChatSessions() {
 
-        UserDto currentUser = (UserDto) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Long userId = currentUser.getUserId();
-
-        List<ChatSession> sessions = chatService.getChatSessions(userId);
+        List<ChatSessionDto> sessions = chatService.getChatSessions();
         return ResponseEntity.ok(new ApiResponseDto<>(sessions));
 
     }
@@ -52,7 +49,7 @@ public class ChatController {
                                  .body(new ErrorResponseDto("You are not authorized to view this chat history."));
         }
 
-        List<Message> messages = chatService.getChatHistory(chatId, page, size);
+        List<MessageDto> messages = chatService.getChatHistory(chatId, page, size);
         return ResponseEntity.ok(new ApiResponseDto<>(messages));
     }
 }

@@ -5,7 +5,8 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.socket.WebSocketHandler;
-import com.example.social_media.dto.UserDto;
+
+import com.example.social_media.dto.user.UserDto;
 import com.example.social_media.security.JwtUtil;
 
 import java.net.URI;
