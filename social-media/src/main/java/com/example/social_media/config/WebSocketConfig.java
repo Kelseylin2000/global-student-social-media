@@ -3,6 +3,7 @@ package com.example.social_media.config;
 import java.security.Principal;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -22,6 +23,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private JwtUtil jwtUtil;
 
+    @Value("${allowed.origins}")
+    private String allowedOrigins;
+
     public WebSocketConfig(JwtUtil jwtUtil){
         this.jwtUtil = jwtUtil;
     }
@@ -36,7 +40,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOrigins("http://localhost:8080")
+                .setAllowedOrigins(allowedOrigins, "http://localhost:3000")
                 .addInterceptors(new WebSocketAuthInterceptor(jwtUtil))
                 .setHandshakeHandler(new DefaultHandshakeHandler() {
                     @Override
