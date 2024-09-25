@@ -33,15 +33,15 @@ public class FriendServiceImpl implements FriendService{
     }
 
     @Override
-    public Set<UserFriendResultDto> getUserFriends() {
+    public List<UserFriendResultDto> getUserFriends() {
         
         Long userId = authService.getCurrentUserId();
         UserNode user = userNodeRepository.findByUserId(userId);
 
-        return user != null ? convertToDto(user.getFriends()) : Set.of();
+        return user != null ? convertToDto(user.getFriends()) : List.of();
     }
 
-    private Set<UserFriendResultDto> convertToDto(Set<UserNode> friends) {
+    private List<UserFriendResultDto> convertToDto(List<UserNode> friends) {
 
     return friends.stream()
             .map(friend -> new UserFriendResultDto(
@@ -53,7 +53,7 @@ public class FriendServiceImpl implements FriendService{
                     friend.getExchangeSchool() != null ? friend.getExchangeSchool().getSchoolId() : null,
                     friend.getExchangeSchool() != null ? friend.getExchangeSchool().getSchoolName() : null
             ))
-            .collect(Collectors.toSet());
+            .collect(Collectors.toList());
     }
 
     @Override

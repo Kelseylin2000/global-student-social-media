@@ -12,7 +12,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.util.Set;
+import java.util.List;
 import java.util.Objects;
 
 @Data
@@ -44,16 +44,16 @@ public class UserNode {
     private LocalDate startDate;
 
     @Relationship(type = "FRIEND_REQUEST_SENT")
-    private Set<UserNode> friendRequestSent;
+    private List<UserNode> friendRequestSent;
 
     @Relationship(type = "FRIEND_REQUEST_RECEIVED")
-    private Set<UserNode> friendRequestReceived;
+    private List<UserNode> friendRequestReceived;
 
     @Relationship(type = "FRIENDS")
-    private Set<UserNode> friends;
+    private List<UserNode> friends;
 
     @Relationship(type = "INTERESTED_IN")
-    private Set<InterestNode> interests;
+    private List<InterestNode> interests;
 
     @Relationship(type = "ORIGIN_IN")
     private SchoolNode originSchool;
@@ -61,6 +61,6 @@ public class UserNode {
     @Relationship(type = "EXCHANGE_TO")
     private SchoolNode exchangeSchool;
 
-    @Relationship(type = "INTERESTED_IN")
-    private Set<SchoolNode> interestedSchools;
+    @Relationship(type = "INTERESTED_SCHOOL")
+    private List<SchoolNode> interestedSchools;
 }

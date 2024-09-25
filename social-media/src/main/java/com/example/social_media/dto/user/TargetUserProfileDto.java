@@ -16,10 +16,9 @@ public class TargetUserProfileDto {
     private String phase;
     private String introduction;
 
-    private Long originSchoolId;
     private String originSchoolName;
-    private Long exchangeSchoolId;
     private String exchangeSchoolName;
+    private List<String> interests;
 
     private List<String> mutualFriends;
     private List<String> mutualInterests;

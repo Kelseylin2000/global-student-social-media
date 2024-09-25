@@ -1,9 +1,7 @@
 package com.example.social_media.service.implement;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -142,24 +140,12 @@ public class UserServiceImpl implements UserService{
         Long currentUserId = authService.getCurrentUserId();
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
-        UserNodeWithMutualInfoDto userNodeWithMutualInfo = userNodeRepository.findMutualInfoBetweenUsers(currentUserId, userId);
-        UserNode userNode = userNodeWithMutualInfo.getTarget();
-        
-        TargetUserProfileDto targetUserProfileDto = new TargetUserProfileDto(
-            userId,
-            userNode.getName(),
-            userNode.getPhase() != null ? userNode.getPhase().toString() : null,
-            user.getIntroduction(),
-            userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolId() : null,
-            userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null,
-            userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolId() : null,
-            userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null,
-            userNodeWithMutualInfo.getMutualFriends(),
-            userNodeWithMutualInfo.getMutualInterests(),
-            userNodeWithMutualInfo.getRelationship()
-        );
 
-        return targetUserProfileDto;
+        TargetUserProfileDto targetUserProfile = userNodeRepository.findUserProfileWithMutualInfo(currentUserId, userId);
+        targetUserProfile.setIntroduction(user.getIntroduction());
+        targetUserProfile.setInterests(userNodeRepository.findUserInterestsByUserId(userId));
+
+        return targetUserProfile;
     }
 
     @Override
@@ -193,8 +179,7 @@ public class UserServiceImpl implements UserService{
             }
             if (interests != null) {
                 List<InterestNode> interestNodes = interestNodeRepository.findByInterestIdIn(interests);
-                Set<InterestNode> interestSet = new HashSet<>(interestNodes);
-                userNode.setInterests(interestSet);
+                userNode.setInterests(interestNodes);
             }
             userNodeRepository.save(userNode);
         }
@@ -206,8 +191,7 @@ public class UserServiceImpl implements UserService{
 
         UserNode userNode = userNodeRepository.findByUserId(userId);
         List<SchoolNode> schoolNodes = schoolNodeRepository.findBySchoolIdIn(schoolIds);
-        Set<SchoolNode> interestedSchools = new HashSet<>(schoolNodes);
-        userNode.setInterestedSchools(interestedSchools);
+        userNode.setInterestedSchools(schoolNodes);
 
         userNodeRepository.save(userNode);
     }

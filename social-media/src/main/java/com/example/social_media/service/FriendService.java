@@ -9,7 +9,7 @@ import com.example.social_media.dto.friend.UserFriendResultDto;
 public interface FriendService {
 
     List<PendingFriendRequestDto> getPendingFriendRequests();
-    Set<UserFriendResultDto> getUserFriends();
+    List<UserFriendResultDto> getUserFriends();
 
     void sendFriendRequest(Long userId, Long targetUserId);
     void acceptFriendRequest(Long userId, Long targetUserId);

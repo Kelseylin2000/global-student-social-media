@@ -31,8 +31,8 @@ public class FriendController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<ApiResponseDto<Set<UserFriendResultDto>>> getUserFriends() {
-        Set<UserFriendResultDto> friends = friendService.getUserFriends();
+    public ResponseEntity<ApiResponseDto<List<UserFriendResultDto>>> getUserFriends() {
+        List<UserFriendResultDto> friends = friendService.getUserFriends();
         return ResponseEntity.ok(new ApiResponseDto<>(friends));
     }
 }

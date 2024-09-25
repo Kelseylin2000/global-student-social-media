@@ -1,6 +1,7 @@
 package com.example.social_media.repository.neo4j;
 
 import com.example.social_media.dto.friend.PendingFriendRequestDto;
+import com.example.social_media.dto.user.TargetUserProfileDto;
 import com.example.social_media.dto.user.UserNodeWithMutualInfoDto;
 import com.example.social_media.model.node.UserNode;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
@@ -15,28 +16,48 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
     
     @Query("""
         MATCH (u:UserNode {userId: $currentUserId}), (target:UserNode {userId: $targetUserId})
+        
+        OPTIONAL MATCH (target)-[:INTERESTED_IN]->(interest:InterestNode)
         OPTIONAL MATCH (u)-[:FRIENDS]->(mutualFriend:UserNode)<-[:FRIENDS]-(target)
         OPTIONAL MATCH (u)-[:INTERESTED_IN]->(mutualInterest:InterestNode)<-[:INTERESTED_IN]-(target)
-    
         OPTIONAL MATCH (u)-[friendRel:FRIENDS]->(target)
         OPTIONAL MATCH (u)-[sentRel:FRIEND_REQUEST_SENT]->(target)
         OPTIONAL MATCH (u)-[receivedRel:FRIEND_REQUEST_RECEIVED]->(target)
+        OPTIONAL MATCH (target)-[:ORIGIN_IN]->(originSchool:SchoolNode)
+        OPTIONAL MATCH (target)-[:EXCHANGE_TO]->(exchangeSchool:SchoolNode)
+
     
         WITH target,
-               collect(DISTINCT mutualFriend.name) AS mutualFriends,
-               collect(DISTINCT mutualInterest.interest) AS mutualInterests,
-               CASE 
-                   WHEN friendRel IS NOT NULL THEN 'FRIENDS'
-                   WHEN sentRel IS NOT NULL THEN 'FRIEND_REQUEST_SENT'
-                   WHEN receivedRel IS NOT NULL THEN 'FRIEND_REQUEST_RECEIVED'
-                   ELSE 'NO_RELATION'
-               END AS relationship
+            originSchool,
+            exchangeSchool,
+             collect(DISTINCT interest.interest) AS interests,
+             collect(DISTINCT mutualFriend.name) AS mutualFriends,
+             collect(DISTINCT mutualInterest.interest) AS mutualInterests,
+             CASE 
+                 WHEN friendRel IS NOT NULL THEN 'FRIENDS'
+                 WHEN sentRel IS NOT NULL THEN 'FRIEND_REQUEST_SENT'
+                 WHEN receivedRel IS NOT NULL THEN 'FRIEND_REQUEST_RECEIVED'
+                 ELSE 'NO_RELATION'
+             END AS relationship
     
-        RETURN target, mutualFriends, mutualInterests, relationship;
+        RETURN target.userId AS userId, 
+               target.name AS name, 
+               target.phase AS phase,
+               originSchool.schoolName AS originSchoolName, 
+               exchangeSchool.schoolName AS exchangeSchoolName, 
+               interests,
+               mutualFriends, 
+               mutualInterests, 
+               relationship
         """)
-    UserNodeWithMutualInfoDto findMutualInfoBetweenUsers(Long currentUserId, Long targetUserId);
+    TargetUserProfileDto findUserProfileWithMutualInfo(Long currentUserId, Long targetUserId);
     
 
+    @Query("""
+        MATCH (target:UserNode {userId: $targetUserId})-[:INTERESTED_IN]->(interest:InterestNode)
+        RETURN interest.interest
+    """)
+    List<String> findUserInterestsByUserId(Long targetUserId);
 
     @Query("""
         MATCH (target:UserNode)
