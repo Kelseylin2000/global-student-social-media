@@ -183,9 +183,9 @@ public class PostServiceImpl implements PostService{
         postWithCommentDto.setPostId(post.getId());
         postWithCommentDto.setUserId(post.getUserId());
         postWithCommentDto.setName(userNode.getName());
-        postWithCommentDto.setPhase(userNode.getPhase() != null ? userNode.getPhase().toString() : null);
-        postWithCommentDto.setFromSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
-        postWithCommentDto.setToSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
+        postWithCommentDto.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
+        postWithCommentDto.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
+        postWithCommentDto.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
 
         postWithCommentDto.setContent(post.getContent());
         postWithCommentDto.setImages(imageService.addImagePrefix(post.getImages()));
@@ -311,9 +311,9 @@ public class PostServiceImpl implements PostService{
         postWithoutCommentsDto.setPostId(post.getId());
         postWithoutCommentsDto.setUserId(post.getUserId());
         postWithoutCommentsDto.setName(userNode.getName());
-        postWithoutCommentsDto.setPhase(userNode.getPhase() != null ? userNode.getPhase().toString() : null);
-        postWithoutCommentsDto.setFromSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
-        postWithoutCommentsDto.setToSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
+        postWithoutCommentsDto.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
+        postWithoutCommentsDto.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
+        postWithoutCommentsDto.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
         postWithoutCommentsDto.setContent(post.getContent());
         postWithoutCommentsDto.setImages(imageService.addImagePrefix(post.getImages()));
         postWithoutCommentsDto.setCreatedAt(post.getCreatedAt());
@@ -536,7 +536,7 @@ public class PostServiceImpl implements PostService{
         SchoolNode posterExchangeSchool = poster.getExchangeSchool();
         SchoolNode userExchangeSchool = user.getExchangeSchool();
     
-        if (user.getPhase() == Phase.APPLYING) {
+        if (user.getPhase().equals("APPLYING")) {
             if (posterExchangeSchool != null && user.getInterestedSchools() != null && user.getInterestedSchools().contains(posterExchangeSchool)) {
                 score += highSchoolScore;
             }

@@ -6,6 +6,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import com.example.social_media.dto.friend.FriendRequestDto;
+import com.example.social_media.dto.friend.UserFriendResultDto;
+
 import com.example.social_media.service.FriendService;
 
 @Controller
@@ -22,12 +24,12 @@ public class WebSocketFriendController {
     @MessageMapping("/friend.sendRequest")
     public void sendFriendRequest(@Payload FriendRequestDto friendRequest) {
 
-        friendService.sendFriendRequest(friendRequest.getUserId(), friendRequest.getTargetUserId());
+        UserFriendResultDto senderInfo = friendService.sendFriendRequest(friendRequest.getUserId(), friendRequest.getTargetUserId());
 
         messagingTemplate.convertAndSendToUser(
             friendRequest.getTargetUserId().toString(),
             "/queue/friend-requests",
-            friendRequest
+            senderInfo
         );
     }
 

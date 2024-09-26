@@ -12,8 +12,6 @@ public class UserFriendResultDto {
     private Long userId;
     private String name;
     private String phase;
-    private Long originSchoolId;
     private String originSchoolName;
-    private Long exchangeSchoolId;
     private String exchangeSchoolName;
 }

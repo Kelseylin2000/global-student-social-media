@@ -144,6 +144,10 @@ public class UserServiceImpl implements UserService{
         TargetUserProfileDto targetUserProfile = userNodeRepository.findUserProfileWithMutualInfo(currentUserId, userId);
         targetUserProfile.setIntroduction(user.getIntroduction());
         targetUserProfile.setInterests(userNodeRepository.findUserInterestsByUserId(userId));
+        UserNode userNode = userNodeRepository.findByUserId(userId);
+        targetUserProfile.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
+        targetUserProfile.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
+        targetUserProfile.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
 
         return targetUserProfile;
     }

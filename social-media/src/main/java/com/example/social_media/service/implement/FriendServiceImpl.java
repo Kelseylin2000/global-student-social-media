@@ -1,12 +1,9 @@
 package com.example.social_media.service.implement;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import com.example.social_media.dto.friend.PendingFriendRequestDto;
 import com.example.social_media.dto.friend.UserFriendResultDto;
 import com.example.social_media.model.node.UserNode;
 import com.example.social_media.repository.neo4j.UserNodeRepository;
@@ -25,7 +22,7 @@ public class FriendServiceImpl implements FriendService{
     }
 
     @Override
-    public List<PendingFriendRequestDto> getPendingFriendRequests() {
+    public List<UserFriendResultDto> getPendingFriendRequests() {
 
         Long userId = authService.getCurrentUserId();
         
@@ -36,29 +33,22 @@ public class FriendServiceImpl implements FriendService{
     public List<UserFriendResultDto> getUserFriends() {
         
         Long userId = authService.getCurrentUserId();
-        UserNode user = userNodeRepository.findByUserId(userId);
+        List<UserFriendResultDto> userFriends = userNodeRepository.findFriendsInfo(userId);
 
-        return user != null ? convertToDto(user.getFriends()) : List.of();
+        return userFriends;
     }
-
-    private List<UserFriendResultDto> convertToDto(List<UserNode> friends) {
-
-    return friends.stream()
-            .map(friend -> new UserFriendResultDto(
-                    friend.getUserId(),
-                    friend.getName(),
-                    friend.getPhase() != null ? friend.getPhase().toString() : null,
-                    friend.getOriginSchool() != null ? friend.getOriginSchool().getSchoolId() : null,
-                    friend.getOriginSchool() != null ? friend.getOriginSchool().getSchoolName() : null,
-                    friend.getExchangeSchool() != null ? friend.getExchangeSchool().getSchoolId() : null,
-                    friend.getExchangeSchool() != null ? friend.getExchangeSchool().getSchoolName() : null
-            ))
-            .collect(Collectors.toList());
-    }
-
+    
     @Override
-    public void sendFriendRequest(Long userId, Long targetUserId){
+    public UserFriendResultDto sendFriendRequest(Long userId, Long targetUserId){
         userNodeRepository.sendFriendRequest(userId, targetUserId);
+        UserNode senderNode = userNodeRepository.findByUserId(userId);
+        return new UserFriendResultDto(
+            userId,
+            senderNode.getName(),
+            senderNode.getPhase(),
+            senderNode.getOriginSchool() != null ? senderNode.getOriginSchool().getSchoolName() : null,
+            senderNode.getExchangeSchool() != null ? senderNode.getExchangeSchool().getSchoolName() : null
+        );
     }
 
     @Override

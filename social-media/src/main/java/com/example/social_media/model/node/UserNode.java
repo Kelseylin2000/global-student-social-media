@@ -40,7 +40,7 @@ public class UserNode {
     
     private Long userId;
     private String name;
-    private Phase phase;
+    private String phase;
     private LocalDate startDate;
 
     @Relationship(type = "FRIEND_REQUEST_SENT")

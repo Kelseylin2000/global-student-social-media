@@ -17,8 +17,8 @@ public class PostWithoutCommentsDto {
     private Long userId;
     private String name;
     private String phase;
-    private String fromSchoolName;
-    private String toSchoolName;
+    private String originSchoolName;
+    private String exchangeSchoolName;
 
     private String content;
     private List<String> images;
