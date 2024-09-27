@@ -36,24 +36,12 @@ public class WebSocketFriendController {
     @MessageMapping("/friend.acceptRequest")
     public void acceptFriendRequest(@Payload FriendRequestDto friendRequest) {
 
-        friendService.acceptFriendRequest(friendRequest.getUserId(), friendRequest.getTargetUserId());
+        UserFriendResultDto accepterInfo = friendService.acceptFriendRequest(friendRequest.getUserId(), friendRequest.getTargetUserId());
 
         messagingTemplate.convertAndSendToUser(
             friendRequest.getTargetUserId().toString(),
             "/queue/friend-accept",
-            friendRequest
-        );
-    }
-
-    @MessageMapping("/friend.rejectRequest")
-    public void rejectFriendRequest(@Payload FriendRequestDto friendRequest) {
-
-        friendService.rejectFriendRequest(friendRequest.getUserId(), friendRequest.getTargetUserId());
-
-        messagingTemplate.convertAndSendToUser(
-            friendRequest.getUserId().toString(),
-            "/queue/friend-reject",
-            friendRequest
+            accepterInfo
         );
     }
 }

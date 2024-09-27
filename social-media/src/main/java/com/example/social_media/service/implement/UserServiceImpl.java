@@ -43,18 +43,31 @@ public class UserServiceImpl implements UserService{
     }
 
     @Override
-    public List<UserSearchResultDto> findUsersFromOrToTheSameSchool(){
-
-        Long userId = authService.getCurrentUserId();
-
-        List<UserSearchResultDto> fromSpecificSchool = convertToDto(userNodeRepository.findUsersFromSpecificSchool(userId));
-        List<UserSearchResultDto> toSpecificSchool = convertToDto(userNodeRepository.findUsersToSpecificSchool(userId));
-        
-        List<UserSearchResultDto> combinedList = new ArrayList<>();
-        combinedList.addAll(fromSpecificSchool);
-        combinedList.addAll(toSpecificSchool);
-
-        return combinedList.stream()
+    public List<TargetUserProfileDto> findUsersFromOrToTheSameSchool() {
+    
+        Long currentUserId = authService.getCurrentUserId();
+    
+        List<Long> commonSchoolUserId = userNodeRepository.findUsersCommonSchool(currentUserId);
+    
+        List<TargetUserProfileDto> targetUserProfileList = new ArrayList<>();
+    
+        for (Long userId : commonSchoolUserId) {
+            TargetUserProfileDto targetUserProfile = userNodeRepository.findUserProfileWithMutualInfo(currentUserId, userId);
+            
+            targetUserProfile.setInterests(userNodeRepository.findUserInterestsByUserId(userId));
+            
+            UserNode userNode = userNodeRepository.findByUserId(userId);
+            if (userNode != null) {
+                targetUserProfile.setName(userNode.getName() != null ? userNode.getName() : null);
+                targetUserProfile.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
+                targetUserProfile.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
+                targetUserProfile.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
+            }
+    
+            targetUserProfileList.add(targetUserProfile);
+        }
+    
+        return targetUserProfileList.stream()
             .sorted((p1, p2) -> {
                 int friendCountComparison = Integer.compare(p2.getMutualFriends().size(), p1.getMutualFriends().size());
                 if (friendCountComparison != 0) {
@@ -65,6 +78,7 @@ public class UserServiceImpl implements UserService{
             })
             .collect(Collectors.toList());
     }
+    
 
     @Override
     public List<UserSearchResultDto> searchUsersByName(String keyword){

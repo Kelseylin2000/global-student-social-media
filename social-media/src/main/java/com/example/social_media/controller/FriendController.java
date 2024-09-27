@@ -4,11 +4,15 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.social_media.dto.ApiResponseDto;
 import com.example.social_media.dto.friend.UserFriendResultDto;
+import com.example.social_media.dto.friend.FriendRequestDto;
+
 import com.example.social_media.service.FriendService;
 
 
@@ -32,5 +36,11 @@ public class FriendController {
     public ResponseEntity<ApiResponseDto<List<UserFriendResultDto>>> getUserFriends() {
         List<UserFriendResultDto> friends = friendService.getUserFriends();
         return ResponseEntity.ok(new ApiResponseDto<>(friends));
+    }
+
+    @PostMapping("/rejectRequest")
+    public ResponseEntity<ApiResponseDto<String>> rejectFriendRequest(@RequestBody FriendRequestDto friendRequest) {
+        friendService.rejectFriendRequest(friendRequest.getUserId(), friendRequest.getTargetUserId());
+        return ResponseEntity.ok(new ApiResponseDto<>("Friend request rejected."));
     }
 }

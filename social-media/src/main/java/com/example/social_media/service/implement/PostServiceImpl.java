@@ -536,7 +536,7 @@ public class PostServiceImpl implements PostService{
         SchoolNode posterExchangeSchool = poster.getExchangeSchool();
         SchoolNode userExchangeSchool = user.getExchangeSchool();
     
-        if (user.getPhase().equals("APPLYING")) {
+        if (user.getPhase() != null && user.getPhase().equals("APPLYING")) {
             if (posterExchangeSchool != null && user.getInterestedSchools() != null && user.getInterestedSchools().contains(posterExchangeSchool)) {
                 score += highSchoolScore;
             }

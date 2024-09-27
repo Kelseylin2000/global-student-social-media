@@ -23,24 +23,29 @@ public class FriendServiceImpl implements FriendService{
 
     @Override
     public List<UserFriendResultDto> getPendingFriendRequests() {
-
         Long userId = authService.getCurrentUserId();
-        
         return userNodeRepository.findPendingFriendRequests(userId);
     }
 
     @Override
     public List<UserFriendResultDto> getUserFriends() {
-        
         Long userId = authService.getCurrentUserId();
-        List<UserFriendResultDto> userFriends = userNodeRepository.findFriendsInfo(userId);
-
-        return userFriends;
+        return userNodeRepository.findFriendsInfo(userId);
     }
     
     @Override
     public UserFriendResultDto sendFriendRequest(Long userId, Long targetUserId){
         userNodeRepository.sendFriendRequest(userId, targetUserId);
+        return getUserFriendResultDto(userId);
+    }
+
+    @Override
+    public UserFriendResultDto acceptFriendRequest(Long userId, Long targetUserId){
+        userNodeRepository.acceptFriendRequest(userId, targetUserId);
+        return getUserFriendResultDto(userId);
+    }
+
+    private UserFriendResultDto getUserFriendResultDto(Long userId){
         UserNode senderNode = userNodeRepository.findByUserId(userId);
         return new UserFriendResultDto(
             userId,
@@ -49,11 +54,6 @@ public class FriendServiceImpl implements FriendService{
             senderNode.getOriginSchool() != null ? senderNode.getOriginSchool().getSchoolName() : null,
             senderNode.getExchangeSchool() != null ? senderNode.getExchangeSchool().getSchoolName() : null
         );
-    }
-
-    @Override
-    public void acceptFriendRequest(Long userId, Long targetUserId){
-        userNodeRepository.acceptFriendRequest(userId, targetUserId);
     }
 
     @Override

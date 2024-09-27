@@ -31,8 +31,8 @@ public class UserController {
     }
 
     @GetMapping("/same-school")
-    public ResponseEntity<ApiResponseDto<List<UserSearchResultDto>>> findUsersFromOrToTheSameSchool() {
-        List<UserSearchResultDto> potentialFriends = userService.findUsersFromOrToTheSameSchool();
+    public ResponseEntity<ApiResponseDto<List<TargetUserProfileDto>>> findUsersFromOrToTheSameSchool() {
+        List<TargetUserProfileDto> potentialFriends = userService.findUsersFromOrToTheSameSchool();
         return ResponseEntity.ok(new ApiResponseDto<>(potentialFriends));
     }
 

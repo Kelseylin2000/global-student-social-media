@@ -8,7 +8,7 @@ import com.example.social_media.dto.user.UserProfileUpdateRequestDto;
 import com.example.social_media.dto.user.UserSearchResultDto;
 
 public interface UserService {
-    List<UserSearchResultDto> findUsersFromOrToTheSameSchool();
+    List<TargetUserProfileDto> findUsersFromOrToTheSameSchool();
     List<UserSearchResultDto> searchUsersByName(String keyword);
     
     CurrentUserProfileDto getUserProfileById();

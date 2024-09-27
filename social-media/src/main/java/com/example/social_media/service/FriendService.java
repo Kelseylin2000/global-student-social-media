@@ -10,6 +10,6 @@ public interface FriendService {
     List<UserFriendResultDto> getUserFriends();
 
     UserFriendResultDto sendFriendRequest(Long userId, Long targetUserId);
-    void acceptFriendRequest(Long userId, Long targetUserId);
+    UserFriendResultDto acceptFriendRequest(Long userId, Long targetUserId);
     void rejectFriendRequest(Long userId, Long targetUserId);
 }
