@@ -16,4 +16,9 @@ public interface UserService {
 
     void updateUserProfile(UserProfileUpdateRequestDto profileUpdateRequest);
     void updateInterestedSchools(List<Integer> schoolIds);
+    void deleteAllInterestedSchools();
+    
+    void updateUserPhase(String phase);
+    void updateUserExchangeSchool(Long schoolId);
+    void updateUserOriginSchool(Long schoolId);
 }

@@ -8,4 +8,5 @@ import org.springframework.data.neo4j.repository.Neo4jRepository;
 
 public interface SchoolNodeRepository extends Neo4jRepository<SchoolNode, Long> {
     List<SchoolNode> findBySchoolIdIn(List<Integer> schoolIds);
+    SchoolNode findBySchoolId(Long schoolId);
 }

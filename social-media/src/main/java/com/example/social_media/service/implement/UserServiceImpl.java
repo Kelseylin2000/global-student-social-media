@@ -213,4 +213,41 @@ public class UserServiceImpl implements UserService{
 
         userNodeRepository.save(userNode);
     }
+
+    @Override
+    public void deleteAllInterestedSchools() {
+        Long userId = authService.getCurrentUserId();
+        UserNode user = userNodeRepository.findByUserId(userId);
+
+        if (user != null) {
+            user.setInterestedSchools(new ArrayList<>());
+            userNodeRepository.save(user);
+        }
+    }
+
+    @Override
+    public void updateUserPhase(String phase) {
+        Long userId = authService.getCurrentUserId();
+        UserNode userNode = userNodeRepository.findByUserId(userId);
+        userNode.setPhase(phase);
+        userNodeRepository.save(userNode);
+    }
+
+    @Override
+    public void updateUserExchangeSchool(Long schoolId) {
+        Long userId = authService.getCurrentUserId();
+        SchoolNode exchangeSchool = schoolNodeRepository.findBySchoolId(schoolId);
+        UserNode userNode = userNodeRepository.findByUserId(userId);
+        userNode.setExchangeSchool(exchangeSchool);
+        userNodeRepository.save(userNode);
+    }
+
+    @Override
+    public void updateUserOriginSchool(Long schoolId) {
+        Long userId = authService.getCurrentUserId();
+        SchoolNode originSchool = schoolNodeRepository.findBySchoolId(schoolId);
+        UserNode userNode = userNodeRepository.findByUserId(userId);
+        userNode.setOriginSchool(originSchool);
+        userNodeRepository.save(userNode);
+    }
 }

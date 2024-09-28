@@ -1,5 +1,6 @@
 package com.example.social_media.controller;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -64,5 +65,29 @@ public class UserController {
     public ResponseEntity<ApiResponseDto<String>> updateInterestedSchools(@RequestBody List<Integer> schoolIds) {
         userService.updateInterestedSchools(schoolIds);
         return ResponseEntity.ok(new ApiResponseDto<>("User's interested schools updated successfully"));
+    }
+
+    @DeleteMapping("/interested-schools")
+    public ResponseEntity<ApiResponseDto<String>> deleteAllInterestedSchools() {
+        userService.deleteAllInterestedSchools();
+        return ResponseEntity.ok(new ApiResponseDto<>("User's all interested schools deleted successfully"));
+    }
+
+    @PutMapping("/me/phase")
+    public ResponseEntity<ApiResponseDto<String>> updateUserPhase(@RequestBody String phase) {
+        userService.updateUserPhase(phase);
+        return ResponseEntity.ok(new ApiResponseDto<>("User's phase updated successfully"));
+    }
+
+    @PutMapping("/me/exchange-school")
+    public ResponseEntity<ApiResponseDto<String>> updateExchangeSchool(@RequestBody Long schoolId) {
+        userService.updateUserExchangeSchool(schoolId);
+        return ResponseEntity.ok(new ApiResponseDto<>("User's exchange school updated successfully"));
+    }
+
+    @PutMapping("/me/origin-school")
+    public ResponseEntity<ApiResponseDto<String>> updateOriginSchool(@RequestBody Long schoolId) {
+        userService.updateUserOriginSchool(schoolId);
+        return ResponseEntity.ok(new ApiResponseDto<>("User's origin school updated successfully"));
     }
 }
