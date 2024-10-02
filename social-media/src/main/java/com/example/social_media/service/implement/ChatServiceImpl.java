@@ -16,7 +16,10 @@ import com.example.social_media.repository.mysql.UserRepository;
 import com.example.social_media.service.AuthService;
 import com.example.social_media.service.ChatService;
 
+import jakarta.persistence.EntityNotFoundException;
+
 import java.util.List;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -56,13 +59,19 @@ public class ChatServiceImpl implements ChatService{
 
     @Override
     public List<ChatSessionDto> getChatSessions() {
-
+    
         Long userId = authService.getCurrentUserId();
-
+    
+        String currentUserName = userRepository.findById(userId)
+            .map(User::getName)
+            .orElse("User");
+    
         List<ChatSession> sessions = chatSessionRepository.findByParticipantsContaining(userId);
+        
         sessions.sort(Comparator.comparing(session -> session.getLatestMessage().getCreatedAt(), Comparator.reverseOrder()));
-                return sessions.stream()
-            .map(this::convertToDto)
+    
+        return sessions.stream()
+            .map(session -> convertToDto(session, currentUserName, userId))
             .collect(Collectors.toList());
     }
 
@@ -82,13 +91,20 @@ public class ChatServiceImpl implements ChatService{
                 .orElse(false);
     }
 
-    private ChatSessionDto convertToDto(ChatSession session) {
+    private ChatSessionDto convertToDto(ChatSession session, String currentUserName, Long currentUserId) {
 
         List<Long> participantIds = session.getParticipants();
-        List<User> participants = userRepository.findByUserIdIn(participantIds);
-        List<String> participantNames = participants.stream()
-                .map(User::getName)
-                .collect(Collectors.toList());
+        List<String> participantNames = new ArrayList<>();
+
+        for (Long participantId : participantIds) {
+            if (participantId.equals(currentUserId)) {
+                participantNames.add(currentUserName);
+            } else {
+                User user = userRepository.findById(participantId)
+                        .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + participantId));
+                participantNames.add(user.getName());
+            }
+        }
 
         MessageDto latestMessageDto = convertToMessageDto(session.getLatestMessage());
 
@@ -99,6 +115,7 @@ public class ChatServiceImpl implements ChatService{
                 latestMessageDto
         );
     }
+
 
     private MessageDto convertToMessageDto(Message message) {
         return new MessageDto(
