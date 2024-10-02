@@ -21,7 +21,6 @@ import com.example.social_media.model.document.BrowsingHistory;
 import com.example.social_media.model.document.Comment;
 import com.example.social_media.model.document.Post;
 import com.example.social_media.model.document.SiteUser;
-import com.example.social_media.model.enumtype.Phase;
 import com.example.social_media.model.node.SchoolNode;
 import com.example.social_media.model.node.UserNode;
 import com.example.social_media.repository.mongo.BrowsingHistoryRepository;
@@ -94,9 +93,6 @@ public class PostServiceImpl implements PostService{
         Long userId = authService.getCurrentUserId();
 
         List<String> imageUrls = null;
-
-        System.out.println("imagesFiles hahaha");
-        System.out.println(imagesFiles);
 
         if (imagesFiles != null && imagesFiles.length != 0) {
             imageUrls = imageService.saveImages(imagesFiles);

@@ -98,7 +98,7 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
             (target)-[:EXCHANGE_TO]->(school)
         )
 
-        RETURN target.userId
+        RETURN DISTINCT target.userId
     """)    
     List<Long> findUsersCommonSchool(Long userId);
 
