@@ -120,4 +120,11 @@ public class PostController {
         List<PostWithoutCommentsDto> userPosts = postService.getPostsByUserId(userId);
         return ResponseEntity.ok(new ApiResponseDto<>(userPosts));
     }
+
+    @GetMapping
+    public ResponseEntity<ApiResponseDto<List<PostWithoutCommentsDto>>> getPostByKeyword(@RequestParam String keyword) {
+        List<PostWithoutCommentsDto> posts = postService.getPostsByKeyword(keyword);
+        return ResponseEntity.ok(new ApiResponseDto<>(posts));
+    }
+    
 }

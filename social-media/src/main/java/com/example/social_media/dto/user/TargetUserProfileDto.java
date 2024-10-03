@@ -20,7 +20,7 @@ public class TargetUserProfileDto {
     private String exchangeSchoolName;
     private List<String> interests;
 
-    private List<String> mutualFriends;
+    private List<Long> mutualFriends;
     private List<String> mutualInterests;
     
     private String relationship;

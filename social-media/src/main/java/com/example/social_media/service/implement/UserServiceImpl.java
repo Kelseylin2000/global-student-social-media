@@ -9,9 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.social_media.dto.user.CurrentUserProfileDto;
 import com.example.social_media.dto.user.TargetUserProfileDto;
-import com.example.social_media.dto.user.UserNodeWithMutualInfoDto;
 import com.example.social_media.dto.user.UserProfileUpdateRequestDto;
-import com.example.social_media.dto.user.UserSearchResultDto;
 import com.example.social_media.model.entity.User;
 import com.example.social_media.model.node.InterestNode;
 import com.example.social_media.model.node.SchoolNode;
@@ -46,12 +44,23 @@ public class UserServiceImpl implements UserService{
     public List<TargetUserProfileDto> findUsersFromOrToTheSameSchool() {
     
         Long currentUserId = authService.getCurrentUserId();
-    
         List<Long> commonSchoolUserId = userNodeRepository.findUsersCommonSchool(currentUserId);
-    
+        return findTargetUserProfileByUserIds(commonSchoolUserId, currentUserId);
+    }
+
+    @Override
+    public List<TargetUserProfileDto> searchUsersByName(String keyword){
+
+        Long currentUserId = authService.getCurrentUserId();
+        List<Long> userIdsContainKeyword = userNodeRepository.findUsersByNameWithDetails(keyword);
+        return findTargetUserProfileByUserIds(userIdsContainKeyword, currentUserId);
+    }
+
+    private List<TargetUserProfileDto> findTargetUserProfileByUserIds(List<Long> userIds, Long currentUserId){
+
         List<TargetUserProfileDto> targetUserProfileList = new ArrayList<>();
     
-        for (Long userId : commonSchoolUserId) {
+        for (Long userId : userIds) {
             TargetUserProfileDto targetUserProfile = userNodeRepository.findUserProfileWithMutualInfo(currentUserId, userId);
             
             targetUserProfile.setInterests(userNodeRepository.findUserInterestsByUserId(userId));
@@ -75,42 +84,6 @@ public class UserServiceImpl implements UserService{
                 } else {
                     return Integer.compare(p2.getMutualInterests().size(), p1.getMutualInterests().size());
                 }
-            })
-            .collect(Collectors.toList());
-    }
-    
-
-    @Override
-    public List<UserSearchResultDto> searchUsersByName(String keyword){
-        List<UserSearchResultDto> usersContainKeyword = convertToDto(userNodeRepository.findUsersByNameWithDetails(keyword));
-        
-        return usersContainKeyword.stream()
-            .sorted((p1, p2) -> {
-                int friendCountComparison = Integer.compare(p2.getMutualFriends().size(), p1.getMutualFriends().size());
-                if (friendCountComparison != 0) {
-                    return friendCountComparison;
-                } else {
-                    return Integer.compare(p2.getMutualInterests().size(), p1.getMutualInterests().size());
-                }
-            })
-            .collect(Collectors.toList());
-    }
-
-    private List<UserSearchResultDto> convertToDto(List<UserNodeWithMutualInfoDto> users) {
-    return users.stream()
-            .map(user -> {
-                UserNode userNode = user.getTarget(); 
-                return new UserSearchResultDto(
-                    userNode.getUserId(),
-                    userNode.getName(),
-                    userNode.getPhase() != null ? userNode.getPhase().toString() : null,
-                    userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolId() : null,
-                    userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null,
-                    userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolId() : null,
-                    userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null,
-                    user.getMutualFriends(),
-                    user.getMutualInterests()
-                );
             })
             .collect(Collectors.toList());
     }

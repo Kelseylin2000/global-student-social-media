@@ -566,4 +566,12 @@ public class PostServiceImpl implements PostService{
                     .map(this::getPostWithoutComments)
                     .collect(Collectors.toList());
     }
+
+    @Override
+    public List<PostWithoutCommentsDto> getPostsByKeyword(String keyword){
+        List<Post> posts = postRepository.findByContentContaining(keyword);
+        return posts.stream()
+                    .map(this::getPostWithoutComments)
+                    .collect(Collectors.toList());
+    }
 }

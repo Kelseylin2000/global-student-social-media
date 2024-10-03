@@ -33,4 +33,6 @@ public interface PostService {
 
     Page<PostWithoutCommentsDto> getRecommendedPosts(int page, int size);
     List<PostWithoutCommentsDto> getPostsByUserId(long userId);
+
+    List<PostWithoutCommentsDto> getPostsByKeyword(String keyword);
 }

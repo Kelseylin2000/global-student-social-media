@@ -2,7 +2,6 @@ package com.example.social_media.repository.neo4j;
 
 import com.example.social_media.dto.friend.UserFriendResultDto;
 import com.example.social_media.dto.user.TargetUserProfileDto;
-import com.example.social_media.dto.user.UserNodeWithMutualInfoDto;
 import com.example.social_media.model.node.UserNode;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
@@ -35,7 +34,7 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
             WITH target
             MATCH (u:UserNode {userId: $currentUserId})
             OPTIONAL MATCH (u)-[:FRIENDS]->(mutualFriend:UserNode)<-[:FRIENDS]-(target)
-            RETURN collect(DISTINCT mutualFriend.name) AS mutualFriends
+            RETURN collect(DISTINCT mutualFriend.userId) AS mutualFriends
         }
 
         CALL {
@@ -76,14 +75,10 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
 
     @Query("""
         MATCH (target:UserNode)
-        OPTIONAL MATCH (u:UserNode)-[:FRIENDS]->(mutualFriend:UserNode)<-[:FRIENDS]-(target)
-        OPTIONAL MATCH (u:UserNode)-[:INTERESTED_IN]->(mutualInterest:InterestNode)<-[:INTERESTED_IN]-(target)
         WHERE target.name CONTAINS $keyword
-        RETURN target,
-               collect(DISTINCT mutualFriend.name) AS mutualFriends,
-               collect(DISTINCT mutualInterest.interest) AS mutualInterests
+        RETURN target.userId
         """)
-    List<UserNodeWithMutualInfoDto> findUsersByNameWithDetails(String keyword);
+    List<Long> findUsersByNameWithDetails(String keyword);
 
     @Query("""
         MATCH (u:UserNode {userId: $userId})

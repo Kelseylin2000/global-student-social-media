@@ -13,7 +13,6 @@ import com.example.social_media.dto.ApiResponseDto;
 import com.example.social_media.dto.user.CurrentUserProfileDto;
 import com.example.social_media.dto.user.TargetUserProfileDto;
 import com.example.social_media.dto.user.UserProfileUpdateRequestDto;
-import com.example.social_media.dto.user.UserSearchResultDto;
 import com.example.social_media.service.UserService;
 
 import java.util.List;
@@ -38,8 +37,8 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponseDto<List<UserSearchResultDto>>> searchUsersByName(@RequestParam String keyword) {
-        List<UserSearchResultDto> users = userService.searchUsersByName(keyword);
+    public ResponseEntity<ApiResponseDto<List<TargetUserProfileDto>>> searchUsersByName(@RequestParam String keyword) {
+        List<TargetUserProfileDto> users = userService.searchUsersByName(keyword);
         return ResponseEntity.ok(new ApiResponseDto<>(users));
     }
 
