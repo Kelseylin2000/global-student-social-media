@@ -84,6 +84,12 @@ public class UserController {
         return ResponseEntity.ok(new ApiResponseDto<>("User's exchange school updated successfully"));
     }
 
+    @DeleteMapping("/me/exchange-school")
+    public ResponseEntity<ApiResponseDto<String>> deleteExchangeSchool() {
+        userService.deleteUserExchangeSchool();
+        return ResponseEntity.ok(new ApiResponseDto<>("User's exchange school deleted successfully"));
+    }
+
     @PutMapping("/me/origin-school")
     public ResponseEntity<ApiResponseDto<String>> updateOriginSchool(@RequestBody Long schoolId) {
         userService.updateUserOriginSchool(schoolId);

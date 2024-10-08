@@ -73,7 +73,7 @@ public class PostServiceImpl implements PostService{
     private static final double lambda = 0.001;
     private static final double highSchoolScore = 70;
     private static final double mediumCountryScore = 30;
-    private static final double tagWeight = 10;
+    private static final double tagWeight = 0.5;
 
     public PostServiceImpl(AuthService authService, ImageService imageService, PostRepository postRepository, UserNodeRepository userNodeRepository, CommentRepository commentRepository, SiteUserRepository siteUserRepository, BrowsingHistoryRepository browsingHistoryRepository, RedisTemplate<String, Object> redisTemplate, MongoTemplate mongoTemplate){
         this.authService = authService;
@@ -349,7 +349,7 @@ public class PostServiceImpl implements PostService{
     }
 
     @Override
-    @Scheduled(fixedRate = 7200000)
+    @Scheduled(fixedRate = 600000)
     public void batchUpdatePostViews() {
     
         Set<String> keys = redisTemplate.keys(POST_VIEWS_KEY + "*");
@@ -389,7 +389,7 @@ public class PostServiceImpl implements PostService{
     }
 
     @Override
-    @Scheduled(fixedRate = 7200000)
+    @Scheduled(fixedRate = 600000)
     public void batchSaveBrowsingHistory() {
 
         Set<String> keys = redisTemplate.keys(BROWSING_HISTORY_KEY + "*");

@@ -216,6 +216,17 @@ public class UserServiceImpl implements UserService{
     }
 
     @Override
+    public void deleteUserExchangeSchool() {
+        Long userId = authService.getCurrentUserId();
+        UserNode userNode = userNodeRepository.findByUserId(userId);
+    
+        if (userNode != null) {
+            userNode.setExchangeSchool(null);
+            userNodeRepository.save(userNode);
+        }
+    }    
+
+    @Override
     public void updateUserOriginSchool(Long schoolId) {
         Long userId = authService.getCurrentUserId();
         SchoolNode originSchool = schoolNodeRepository.findBySchoolId(schoolId);

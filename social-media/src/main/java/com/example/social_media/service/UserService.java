@@ -19,5 +19,6 @@ public interface UserService {
     
     void updateUserPhase(String phase);
     void updateUserExchangeSchool(Long schoolId);
+    void deleteUserExchangeSchool();
     void updateUserOriginSchool(Long schoolId);
 }
