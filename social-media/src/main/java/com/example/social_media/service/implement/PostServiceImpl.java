@@ -522,13 +522,17 @@ public class PostServiceImpl implements PostService{
         Pageable pageable = PageRequest.of(0, 1000);
         List<Post> recentPosts = postRepository.findAllByOrderByCreatedAtDesc(pageable);
     
-        Map<Long, UserNode> posterMap = getPosterInfo(recentPosts);
+        Map<Long, BasicInfo> posterMap = getPosterInfo(recentPosts);
+
+        List<String> interestedSchools = user.getInterestedSchools().stream()
+            .map(SchoolNode::getSchoolName)
+            .collect(Collectors.toList());
     
         List<ScoredPostDto> scoredPosts = recentPosts.parallelStream()
             .map(post -> {
-                UserNode poster = posterMap.get(post.getUserId());
+                BasicInfo poster = posterMap.get(post.getUserId());
                 if (poster != null) {
-                    double score = calculateScore(post, poster, user, userTagCounts);
+                    double score = calculateScore(post, poster, user, userTagCounts, interestedSchools);
                     return new ScoredPostDto(post, score);
                 }
                 return null;
@@ -585,18 +589,49 @@ public class PostServiceImpl implements PostService{
     }
     
 
-    private Map<Long, UserNode> getPosterInfo(List<Post> posts) {
+    private Map<Long, BasicInfo> getPosterInfo(List<Post> posts) {
         Set<Long> userIds = posts.stream()
                 .map(Post::getUserId)
                 .collect(Collectors.toSet());
-
-        List<UserNode> posters = userNodeRepository.findByUserIdIn(userIds);
-
-        return posters.stream()
-                .collect(Collectors.toMap(UserNode::getUserId, Function.identity()));
+    
+        Map<Long, BasicInfo> posterInfoMap = new HashMap<>();
+        List<Long> missingUserIds = new ArrayList<>();
+    
+        for (Long userId : userIds) {
+            String cacheKey = BASIC_INFO_KEY + userId;
+            BasicInfo cachedBasicInfo = (BasicInfo) redisTemplate.opsForValue().get(cacheKey);
+    
+            if (cachedBasicInfo != null) {
+                posterInfoMap.put(userId, cachedBasicInfo);
+            } else {
+                missingUserIds.add(userId);
+            }
+        }
+    
+        if (!missingUserIds.isEmpty()) {
+            List<UserNode> missingPosters = userNodeRepository.findByUserIdIn(missingUserIds);
+            
+            for (UserNode userNode : missingPosters) {
+                BasicInfo basicInfo = new BasicInfo(
+                    userNode.getName(),
+                    userNode.getPhase(),
+                    userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null,
+                    userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null,
+                    userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getNationId() : null
+                );
+    
+                String cacheKey = BASIC_INFO_KEY + userNode.getUserId();
+                redisTemplate.opsForValue().set(cacheKey, basicInfo, Duration.ofHours(12));
+    
+                posterInfoMap.put(userNode.getUserId(), basicInfo);
+            }
+        }
+    
+        return posterInfoMap;
     }
+    
 
-    private double calculateScore(Post post, UserNode poster, UserNode user, Map<String, Integer> userTagCounts) {
+    private double calculateScore(Post post, BasicInfo poster, UserNode user, Map<String, Integer> userTagCounts, List<String> interestedSchools) {
         double score = 0;
     
         // Time decay factor
@@ -605,7 +640,7 @@ public class PostServiceImpl implements PostService{
         score += timeScore;
     
         // School-related scoring
-        score += calculateSchoolScore(poster, user);
+        score += calculateSchoolScore(poster, user, interestedSchools);
     
         // Tag-based scoring
         double tagScore = 0;
@@ -621,20 +656,21 @@ public class PostServiceImpl implements PostService{
         return score;
     }
     
-    private double calculateSchoolScore(UserNode poster, UserNode user) {
+    private double calculateSchoolScore(BasicInfo poster, UserNode user, List<String> interestedSchools) {
         double schoolScore = 0;
-        SchoolNode posterExchangeSchool = poster.getExchangeSchool();
-        SchoolNode userExchangeSchool = user.getExchangeSchool();
+        String posterExchangeSchool = poster.getExchangeSchoolName();
+        String userExchangeSchool = user.getExchangeSchool() != null ? user.getExchangeSchool().getSchoolName() : null;
     
         if (user.getPhase() != null && user.getPhase().equals("APPLYING")) {
-            if (posterExchangeSchool != null && user.getInterestedSchools() != null && user.getInterestedSchools().contains(posterExchangeSchool)) {
+            if (posterExchangeSchool != null && interestedSchools.contains(posterExchangeSchool)) {
                 schoolScore += highSchoolScore;
             }
         } else {
             if (posterExchangeSchool != null && userExchangeSchool != null) {
                 if (posterExchangeSchool.equals(userExchangeSchool)) {
                     schoolScore += highSchoolScore;
-                } else if (posterExchangeSchool.getNationId().equals(userExchangeSchool.getNationId())) {
+                } else if (user.getExchangeSchool() != null && poster.getNationId() != null &&
+                    user.getExchangeSchool().getNationId().equals(poster.getNationId())) {
                     schoolScore += mediumCountryScore;
                 }
             }
