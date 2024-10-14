@@ -14,17 +14,14 @@ public class CurrentUserProfileDto {
     private Long userId;
     private String name;
     private String phase;
+    private String originSchoolName;
+    private String exchangeSchoolName;
 
     private String introduction;
+    private List<String> interests;
 
     private String fromSchoolEmail;
     private String toSchoolEmail;
 
-    private Long originSchoolId;
-    private String originSchoolName;
-    private Long exchangeSchoolId;
-    private String exchangeSchoolName;
-
-    private List<String> interests;
     private List<String> interestedSchools;
 }

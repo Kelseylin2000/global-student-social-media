@@ -18,6 +18,7 @@ import com.example.social_media.dto.post.PostRequestDto;
 import com.example.social_media.dto.post.PostWithCommentDto;
 import com.example.social_media.dto.post.PostWithoutCommentsDto;
 import com.example.social_media.dto.post.ScoredPostDto;
+import com.example.social_media.dto.user.BasicInfo;
 import com.example.social_media.model.document.BrowsingHistory;
 import com.example.social_media.model.document.Comment;
 import com.example.social_media.model.document.Post;
@@ -72,6 +73,7 @@ public class PostServiceImpl implements PostService{
     private static final String POST_VIEWS_KEY = "post:views:";
     private static final String BROWSING_HISTORY_KEY = "user:browsing:history:";
     private static final String USER_TAGS_KEY = "user:tags:";
+    private static final String BASIC_INFO_KEY = "user:basicInfo:";
 
     private final MongoTemplate mongoTemplate;
 
@@ -171,51 +173,81 @@ public class PostServiceImpl implements PostService{
 
     @Override
     public PostWithCommentDto getPostWithCommentById(String postId) {
-
+    
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("Post not found with id: " + postId));
-
-        UserNode userNode = userNodeRepository.findByUserId(post.getUserId());
-        if (userNode == null) {
-            throw new EntityNotFoundException("User not found with id: " + post.getUserId());
+    
+        String userCacheKey = BASIC_INFO_KEY + post.getUserId();
+        BasicInfo cachedBasicInfo = (BasicInfo) redisTemplate.opsForValue().get(userCacheKey);
+    
+        if (cachedBasicInfo == null) {
+            UserNode userNode = userNodeRepository.findByUserId(post.getUserId());
+            if (userNode == null) {
+                throw new EntityNotFoundException("User not found with id: " + post.getUserId());
+            }
+    
+            cachedBasicInfo = new BasicInfo(
+                userNode.getName(),
+                userNode.getPhase(),
+                userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null,
+                userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null,
+                userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getNationId() : null
+            );
+    
+            redisTemplate.opsForValue().set(userCacheKey, cachedBasicInfo, Duration.ofHours(12));
         }
-
+    
         PostWithCommentDto postWithCommentDto = new PostWithCommentDto();
         postWithCommentDto.setPostId(post.getId());
         postWithCommentDto.setUserId(post.getUserId());
-        postWithCommentDto.setName(userNode.getName());
-        postWithCommentDto.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
-        postWithCommentDto.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
-        postWithCommentDto.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
-
+        postWithCommentDto.setName(cachedBasicInfo.getName());
+        postWithCommentDto.setPhase(cachedBasicInfo.getPhase());
+        postWithCommentDto.setOriginSchoolName(cachedBasicInfo.getOriginSchoolName());
+        postWithCommentDto.setExchangeSchoolName(cachedBasicInfo.getExchangeSchoolName());
+    
         postWithCommentDto.setContent(post.getContent());
         postWithCommentDto.setImages(imageService.addImagePrefix(post.getImages()));
         postWithCommentDto.setCreatedAt(post.getCreatedAt());
         postWithCommentDto.setUpdatedAt(post.getUpdatedAt());
         postWithCommentDto.setTags(post.getTags());
         postWithCommentDto.setViews(post.getViews());
-
+    
         List<Comment> comments = commentRepository.findByPostId(postId);
         List<CommentDto> commentDtos = comments.stream().map(comment -> {
-
-            UserNode commentUserNode = userNodeRepository.findByUserId(comment.getUserId());
-            String name = commentUserNode != null ? commentUserNode.getName() : "Unknown";
-        
+            String commentUserCacheKey = BASIC_INFO_KEY + comment.getUserId();
+            BasicInfo commentUserInfo = (BasicInfo) redisTemplate.opsForValue().get(commentUserCacheKey);
+    
+            if (commentUserInfo == null) {
+                UserNode commentUserNode = userNodeRepository.findByUserId(comment.getUserId());
+                if (commentUserNode != null) {
+                    commentUserInfo = new BasicInfo(
+                        commentUserNode.getName(),
+                        commentUserNode.getPhase(),
+                        commentUserNode.getOriginSchool() != null ? commentUserNode.getOriginSchool().getSchoolName() : null,
+                        commentUserNode.getExchangeSchool() != null ? commentUserNode.getExchangeSchool().getSchoolName() : null,
+                        commentUserNode.getExchangeSchool() != null ? commentUserNode.getExchangeSchool().getNationId() : null
+                    );
+                    redisTemplate.opsForValue().set(commentUserCacheKey, commentUserInfo, Duration.ofHours(12));
+                }
+            }
+    
+            String name = commentUserInfo != null ? commentUserInfo.getName() : "Unknown";
+    
             return new CommentDto(
-                    comment.getId(),
-                    comment.getUserId(),
-                    name,
-                    comment.getContent(),
-                    comment.getTimestamp()
+                comment.getId(),
+                comment.getUserId(),
+                name,
+                comment.getContent(),
+                comment.getTimestamp()
             );
         }).collect(Collectors.toList());
-
+    
         postWithCommentDto.setComments(commentDtos);
         postWithCommentDto.setCommentCount((long) commentDtos.size());
-
+    
         return postWithCommentDto;
     }
-
+    
     @Override
     public CommentDto addComment(String postId, CommentDto commentDto) {
         
@@ -300,17 +332,25 @@ public class PostServiceImpl implements PostService{
     }
 
     private PostWithoutCommentsDto getPostWithoutComments(Post post) {
-        String cacheKey = "post_without_comments:" + post.getId();
-            
-        PostWithoutCommentsDto cachedPostDto = (PostWithoutCommentsDto) redisTemplate.opsForValue().get(cacheKey);
 
-        if (cachedPostDto != null) {
-            return cachedPostDto;
-        }
+        String userCacheKey = BASIC_INFO_KEY + post.getUserId();
+        BasicInfo cachedBasicInfo = (BasicInfo) redisTemplate.opsForValue().get(userCacheKey);
     
-        UserNode userNode = userNodeRepository.findByUserId(post.getUserId());
-        if (userNode == null) {
-            throw new EntityNotFoundException("UserNode not found for userId: " + post.getUserId());
+        if (cachedBasicInfo == null) {
+            UserNode userNode = userNodeRepository.findByUserId(post.getUserId());
+            if (userNode == null) {
+                throw new EntityNotFoundException("UserNode not found for userId: " + post.getUserId());
+            }
+    
+            cachedBasicInfo = new BasicInfo(
+                userNode.getName(),
+                userNode.getPhase(),
+                userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null,
+                userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null,
+                userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getNationId() : null
+            );
+    
+            redisTemplate.opsForValue().set(userCacheKey, cachedBasicInfo, Duration.ofHours(12));
         }
     
         Long commentCount = commentRepository.countByPostId(post.getId());
@@ -318,10 +358,10 @@ public class PostServiceImpl implements PostService{
         PostWithoutCommentsDto postWithoutCommentsDto = new PostWithoutCommentsDto();
         postWithoutCommentsDto.setPostId(post.getId());
         postWithoutCommentsDto.setUserId(post.getUserId());
-        postWithoutCommentsDto.setName(userNode.getName());
-        postWithoutCommentsDto.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
-        postWithoutCommentsDto.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
-        postWithoutCommentsDto.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
+        postWithoutCommentsDto.setName(cachedBasicInfo.getName());
+        postWithoutCommentsDto.setPhase(cachedBasicInfo.getPhase());
+        postWithoutCommentsDto.setOriginSchoolName(cachedBasicInfo.getOriginSchoolName());
+        postWithoutCommentsDto.setExchangeSchoolName(cachedBasicInfo.getExchangeSchoolName());
         postWithoutCommentsDto.setContent(post.getContent());
         postWithoutCommentsDto.setImages(imageService.addImagePrefix(post.getImages()));
         postWithoutCommentsDto.setCreatedAt(post.getCreatedAt());
@@ -330,11 +370,9 @@ public class PostServiceImpl implements PostService{
         postWithoutCommentsDto.setViews(post.getViews());
         postWithoutCommentsDto.setCommentCount(commentCount);
     
-        redisTemplate.opsForValue().set(cacheKey, postWithoutCommentsDto, Duration.ofHours(12));
-    
         return postWithoutCommentsDto;
     }
-    
+        
     @Override
     public void incrementPostViews(String postId){
 
@@ -481,14 +519,11 @@ public class PostServiceImpl implements PostService{
         UserNode user = userNodeRepository.findByUserId(currentUserId);
         Map<String, Integer> userTagCounts = getUserTagCounts(currentUserId);
     
-        // Limit the initial query to recent posts to reduce data volume
-        Pageable pageable = PageRequest.of(0, 1000); // Fetch only the most recent 1000 posts
+        Pageable pageable = PageRequest.of(0, 1000);
         List<Post> recentPosts = postRepository.findAllByOrderByCreatedAtDesc(pageable);
     
-        // Batch load poster information
         Map<Long, UserNode> posterMap = getPosterInfo(recentPosts);
     
-        // Parallel processing to calculate scores
         List<ScoredPostDto> scoredPosts = recentPosts.parallelStream()
             .map(post -> {
                 UserNode poster = posterMap.get(post.getUserId());
@@ -501,19 +536,17 @@ public class PostServiceImpl implements PostService{
             .filter(Objects::nonNull)
             .collect(Collectors.toList());
     
-        // Use PriorityQueue to keep only top 'size' posts
         PriorityQueue<ScoredPostDto> topPosts = new PriorityQueue<>(Comparator.comparingDouble(ScoredPostDto::getScore));
         for (ScoredPostDto scoredPost : scoredPosts) {
             topPosts.offer(scoredPost);
             if (topPosts.size() > size) {
-                topPosts.poll(); // Remove the lowest scored post
+                topPosts.poll(); 
             }
         }
     
         List<ScoredPostDto> sortedTopPosts = new ArrayList<>(topPosts);
         sortedTopPosts.sort((sp1, sp2) -> Double.compare(sp2.getScore(), sp1.getScore()));
     
-        // Map to DTOs
         List<PostWithoutCommentsDto> paginatedPosts = sortedTopPosts.stream()
             .map(scoredPost -> getPostWithoutComments(scoredPost.getPost()))
             .collect(Collectors.toList());
