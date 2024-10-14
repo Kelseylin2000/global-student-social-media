@@ -4,6 +4,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.AccessDeniedException;
@@ -43,9 +44,13 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.Comparator;
+import java.util.PriorityQueue;
+
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.time.Duration;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -70,7 +75,7 @@ public class PostServiceImpl implements PostService{
 
     private final MongoTemplate mongoTemplate;
 
-    private static final double lambda = 0.001;
+    private static final double lambda = 0.000001;
     private static final double highSchoolScore = 70;
     private static final double mediumCountryScore = 30;
     private static final double tagWeight = 0.5;
@@ -295,14 +300,21 @@ public class PostServiceImpl implements PostService{
     }
 
     private PostWithoutCommentsDto getPostWithoutComments(Post post) {
+        String cacheKey = "post_without_comments:" + post.getId();
+            
+        PostWithoutCommentsDto cachedPostDto = (PostWithoutCommentsDto) redisTemplate.opsForValue().get(cacheKey);
 
+        if (cachedPostDto != null) {
+            return cachedPostDto;
+        }
+    
         UserNode userNode = userNodeRepository.findByUserId(post.getUserId());
         if (userNode == null) {
             throw new EntityNotFoundException("UserNode not found for userId: " + post.getUserId());
         }
-
+    
         Long commentCount = commentRepository.countByPostId(post.getId());
-
+    
         PostWithoutCommentsDto postWithoutCommentsDto = new PostWithoutCommentsDto();
         postWithoutCommentsDto.setPostId(post.getId());
         postWithoutCommentsDto.setUserId(post.getUserId());
@@ -317,10 +329,12 @@ public class PostServiceImpl implements PostService{
         postWithoutCommentsDto.setTags(post.getTags());
         postWithoutCommentsDto.setViews(post.getViews());
         postWithoutCommentsDto.setCommentCount(commentCount);
-
+    
+        redisTemplate.opsForValue().set(cacheKey, postWithoutCommentsDto, Duration.ofHours(12));
+    
         return postWithoutCommentsDto;
     }
-
+    
     @Override
     public void incrementPostViews(String postId){
 
@@ -466,50 +480,77 @@ public class PostServiceImpl implements PostService{
         Long currentUserId = authService.getCurrentUserId();
         UserNode user = userNodeRepository.findByUserId(currentUserId);
         Map<String, Integer> userTagCounts = getUserTagCounts(currentUserId);
-
-        List<Post> allPosts = postRepository.findAll();
-        Map<Long, UserNode> posterMap = getPosterInfo(allPosts);
-
-        List<ScoredPostDto> scoredPosts = new ArrayList<>();
-        for (Post post : allPosts) {
-            UserNode poster = posterMap.get(post.getUserId());
-            if (poster != null) {
-                double score = calculateScore(post, poster, user, userTagCounts);
-                scoredPosts.add(new ScoredPostDto(post, score));
+    
+        // Limit the initial query to recent posts to reduce data volume
+        Pageable pageable = PageRequest.of(0, 1000); // Fetch only the most recent 1000 posts
+        List<Post> recentPosts = postRepository.findAllByOrderByCreatedAtDesc(pageable);
+    
+        // Batch load poster information
+        Map<Long, UserNode> posterMap = getPosterInfo(recentPosts);
+    
+        // Parallel processing to calculate scores
+        List<ScoredPostDto> scoredPosts = recentPosts.parallelStream()
+            .map(post -> {
+                UserNode poster = posterMap.get(post.getUserId());
+                if (poster != null) {
+                    double score = calculateScore(post, poster, user, userTagCounts);
+                    return new ScoredPostDto(post, score);
+                }
+                return null;
+            })
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    
+        // Use PriorityQueue to keep only top 'size' posts
+        PriorityQueue<ScoredPostDto> topPosts = new PriorityQueue<>(Comparator.comparingDouble(ScoredPostDto::getScore));
+        for (ScoredPostDto scoredPost : scoredPosts) {
+            topPosts.offer(scoredPost);
+            if (topPosts.size() > size) {
+                topPosts.poll(); // Remove the lowest scored post
             }
         }
-
-        scoredPosts.sort((sp1, sp2) -> Double.compare(sp2.getScore(), sp1.getScore()));
-
-        Pageable pageable = PageRequest.of(page, size);
-
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + size), scoredPosts.size());
-
-        List<PostWithoutCommentsDto> paginatedPosts = scoredPosts.subList(start, end)
-            .stream()
+    
+        List<ScoredPostDto> sortedTopPosts = new ArrayList<>(topPosts);
+        sortedTopPosts.sort((sp1, sp2) -> Double.compare(sp2.getScore(), sp1.getScore()));
+    
+        // Map to DTOs
+        List<PostWithoutCommentsDto> paginatedPosts = sortedTopPosts.stream()
             .map(scoredPost -> getPostWithoutComments(scoredPost.getPost()))
             .collect(Collectors.toList());
-
-        return new PageImpl<>(paginatedPosts, pageable, scoredPosts.size());
+    
+        return new PageImpl<>(paginatedPosts, PageRequest.of(page, size), paginatedPosts.size());
     }
 
     private Map<String, Integer> getUserTagCounts(Long userId) {
         Map<String, Integer> tagCounts = new HashMap<>();
+        List<String> redisKeys = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             String date = LocalDate.now().minusDays(i).toString();
             String redisKey = USER_TAGS_KEY + userId + ":" + date;
-            Map<Object, Object> dailyTags = redisTemplate.opsForHash().entries(redisKey);
-
+            redisKeys.add(redisKey);
+        }
+    
+        List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            redisKeys.forEach(key -> {
+                byte[] rawKey = redisTemplate.getStringSerializer().serialize(key);
+                connection.hGetAll(rawKey);
+            });
+            return null;
+        });
+    
+        for (int i = 0; i < results.size(); i++) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> dailyTags = (Map<String, String>) results.get(i);
             int weight = 5 - i;
-            for (Map.Entry<Object, Object> entry : dailyTags.entrySet()) {
-                String tag = entry.getKey().toString();
-                int count = Integer.parseInt(entry.getValue().toString()); // Ensure type casting
+            for (Map.Entry<String, String> entry : dailyTags.entrySet()) {
+                String tag = entry.getKey();
+                int count = Integer.parseInt(entry.getValue());
                 tagCounts.put(tag, tagCounts.getOrDefault(tag, 0) + count * weight);
             }
         }
         return tagCounts;
     }
+    
 
     private Map<Long, UserNode> getPosterInfo(List<Post> posts) {
         Set<Long> userIds = posts.stream()
@@ -525,27 +566,15 @@ public class PostServiceImpl implements PostService{
     private double calculateScore(Post post, UserNode poster, UserNode user, Map<String, Integer> userTagCounts) {
         double score = 0;
     
-        long timeDifference = ChronoUnit.DAYS.between(post.getCreatedAt(), LocalDateTime.now());
+        // Time decay factor
+        long timeDifference = ChronoUnit.SECONDS.between(post.getCreatedAt(), LocalDateTime.now());
         double timeScore = Math.exp(-lambda * timeDifference);
         score += timeScore;
     
-        SchoolNode posterExchangeSchool = poster.getExchangeSchool();
-        SchoolNode userExchangeSchool = user.getExchangeSchool();
+        // School-related scoring
+        score += calculateSchoolScore(poster, user);
     
-        if (user.getPhase() != null && user.getPhase().equals("APPLYING")) {
-            if (posterExchangeSchool != null && user.getInterestedSchools() != null && user.getInterestedSchools().contains(posterExchangeSchool)) {
-                score += highSchoolScore;
-            }
-        } else {
-            if (posterExchangeSchool != null && userExchangeSchool != null) {
-                if (posterExchangeSchool.equals(userExchangeSchool)) {
-                    score += highSchoolScore;
-                } else if (posterExchangeSchool.getNationId().equals(userExchangeSchool.getNationId())) {
-                    score += mediumCountryScore;
-                }
-            }
-        }
-    
+        // Tag-based scoring
         double tagScore = 0;
         List<String> tags = post.getTags();
         if (tags != null) {
@@ -558,11 +587,33 @@ public class PostServiceImpl implements PostService{
     
         return score;
     }
+    
+    private double calculateSchoolScore(UserNode poster, UserNode user) {
+        double schoolScore = 0;
+        SchoolNode posterExchangeSchool = poster.getExchangeSchool();
+        SchoolNode userExchangeSchool = user.getExchangeSchool();
+    
+        if (user.getPhase() != null && user.getPhase().equals("APPLYING")) {
+            if (posterExchangeSchool != null && user.getInterestedSchools() != null && user.getInterestedSchools().contains(posterExchangeSchool)) {
+                schoolScore += highSchoolScore;
+            }
+        } else {
+            if (posterExchangeSchool != null && userExchangeSchool != null) {
+                if (posterExchangeSchool.equals(userExchangeSchool)) {
+                    schoolScore += highSchoolScore;
+                } else if (posterExchangeSchool.getNationId().equals(userExchangeSchool.getNationId())) {
+                    schoolScore += mediumCountryScore;
+                }
+            }
+        }
+        return schoolScore;
+    }
 
     @Override
     public List<PostWithoutCommentsDto> getPostsByUserId(long userId) {
         List<Post> posts = postRepository.findByUserId(userId);
         return posts.stream()
+                    .sorted(Comparator.comparing(Post::getCreatedAt).reversed())
                     .map(this::getPostWithoutComments)
                     .collect(Collectors.toList());
     }

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,8 @@ import com.example.social_media.service.UserService;
 
 import jakarta.persistence.EntityNotFoundException;
 
+import java.time.Duration;
+
 @Service
 public class UserServiceImpl implements UserService{
 
@@ -32,12 +35,16 @@ public class UserServiceImpl implements UserService{
     private final SchoolNodeRepository schoolNodeRepository;
     private final AuthService authService;
 
-    public UserServiceImpl(UserNodeRepository userNodeRepository, UserRepository userRepository, InterestNodeRepository interestNodeRepository, SchoolNodeRepository schoolNodeRepository, AuthService authService){
+    private final RedisTemplate<String, Object> redisTemplate;
+    private static final String USER_PROFILE_KEY = "user:profile:";
+
+    public UserServiceImpl(UserNodeRepository userNodeRepository, UserRepository userRepository, InterestNodeRepository interestNodeRepository, SchoolNodeRepository schoolNodeRepository, AuthService authService,  RedisTemplate<String, Object> redisTemplate){
         this.userNodeRepository = userNodeRepository;
         this.userRepository = userRepository;
         this.interestNodeRepository = interestNodeRepository;
         this.schoolNodeRepository = schoolNodeRepository;
         this.authService = authService;
+        this.redisTemplate = redisTemplate;
     }
 
     @Override
@@ -56,24 +63,32 @@ public class UserServiceImpl implements UserService{
         return findTargetUserProfileByUserIds(userIdsContainKeyword, currentUserId);
     }
 
-    private List<TargetUserProfileDto> findTargetUserProfileByUserIds(List<Long> userIds, Long currentUserId){
-
+    public List<TargetUserProfileDto> findTargetUserProfileByUserIds(List<Long> userIds, Long currentUserId) {
         List<TargetUserProfileDto> targetUserProfileList = new ArrayList<>();
-    
+        
         for (Long userId : userIds) {
-            TargetUserProfileDto targetUserProfile = userNodeRepository.findUserProfileWithMutualInfo(currentUserId, userId);
+            String cacheKey = USER_PROFILE_KEY + userId;
             
-            targetUserProfile.setInterests(userNodeRepository.findUserInterestsByUserId(userId));
+            TargetUserProfileDto cachedProfile = (TargetUserProfileDto) redisTemplate.opsForValue().get(cacheKey);
             
-            UserNode userNode = userNodeRepository.findByUserId(userId);
-            if (userNode != null) {
-                targetUserProfile.setName(userNode.getName() != null ? userNode.getName() : null);
-                targetUserProfile.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
-                targetUserProfile.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
-                targetUserProfile.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
+            if (cachedProfile != null) {
+                targetUserProfileList.add(cachedProfile);
+            } else {
+                TargetUserProfileDto targetUserProfile = userNodeRepository.findUserProfileWithMutualInfo(currentUserId, userId);
+                targetUserProfile.setInterests(userNodeRepository.findUserInterestsByUserId(userId));
+        
+                UserNode userNode = userNodeRepository.findByUserId(userId);
+                if (userNode != null) {
+                    targetUserProfile.setName(userNode.getName() != null ? userNode.getName() : null);
+                    targetUserProfile.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
+                    targetUserProfile.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
+                    targetUserProfile.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
+                }
+        
+                redisTemplate.opsForValue().set(cacheKey, targetUserProfile, Duration.ofHours(12));
+        
+                targetUserProfileList.add(targetUserProfile);
             }
-    
-            targetUserProfileList.add(targetUserProfile);
         }
     
         return targetUserProfileList.stream()
@@ -86,7 +101,7 @@ public class UserServiceImpl implements UserService{
                 }
             })
             .collect(Collectors.toList());
-    }
+    }    
 
     @Override
     public CurrentUserProfileDto getUserProfileById(){
@@ -123,21 +138,42 @@ public class UserServiceImpl implements UserService{
     }
 
     @Override
-    public TargetUserProfileDto getUserProfileById(Long userId){
+    public TargetUserProfileDto getUserProfileById(Long userId) {
         Long currentUserId = authService.getCurrentUserId();
+        String cacheKey = USER_PROFILE_KEY + userId;
+    
+        TargetUserProfileDto cachedProfile = (TargetUserProfileDto) redisTemplate.opsForValue().get(cacheKey);
+        
+        if (cachedProfile != null) {
+            if (cachedProfile.getIntroduction() == null) {
+                User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
+                cachedProfile.setIntroduction(user.getIntroduction());
+    
+                redisTemplate.opsForValue().set(cacheKey, cachedProfile, Duration.ofHours(12));
+            }
+            return cachedProfile;
+        }
+    
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
-
+    
         TargetUserProfileDto targetUserProfile = userNodeRepository.findUserProfileWithMutualInfo(currentUserId, userId);
         targetUserProfile.setIntroduction(user.getIntroduction());
         targetUserProfile.setInterests(userNodeRepository.findUserInterestsByUserId(userId));
+    
         UserNode userNode = userNodeRepository.findByUserId(userId);
-        targetUserProfile.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
-        targetUserProfile.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
-        targetUserProfile.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
-
+        if (userNode != null) {
+            targetUserProfile.setPhase(userNode.getPhase() != null ? userNode.getPhase() : null);
+            targetUserProfile.setOriginSchoolName(userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null);
+            targetUserProfile.setExchangeSchoolName(userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null);
+        }
+    
+        redisTemplate.opsForValue().set(cacheKey, targetUserProfile, Duration.ofHours(12));
+    
         return targetUserProfile;
-    }
+    }    
+    
 
     @Override
     public void updateUserProfile(UserProfileUpdateRequestDto profileUpdateRequest) {
@@ -159,6 +195,9 @@ public class UserServiceImpl implements UserService{
             user.setIntroduction(introduction);
         }
         userRepository.save(user);
+
+        String cacheKey = USER_PROFILE_KEY + userId;
+        redisTemplate.delete(cacheKey);
     }
 
     @Transactional("neo4jTransactionManager")
@@ -174,6 +213,8 @@ public class UserServiceImpl implements UserService{
             }
             userNodeRepository.save(userNode);
         }
+        String cacheKey = USER_PROFILE_KEY + userId;
+        redisTemplate.delete(cacheKey);
     }
 
     @Override
@@ -204,6 +245,9 @@ public class UserServiceImpl implements UserService{
         UserNode userNode = userNodeRepository.findByUserId(userId);
         userNode.setPhase(phase);
         userNodeRepository.save(userNode);
+
+        String cacheKey = USER_PROFILE_KEY + userId;
+        redisTemplate.delete(cacheKey);
     }
 
     @Override
@@ -213,6 +257,9 @@ public class UserServiceImpl implements UserService{
         UserNode userNode = userNodeRepository.findByUserId(userId);
         userNode.setExchangeSchool(exchangeSchool);
         userNodeRepository.save(userNode);
+
+        String cacheKey = USER_PROFILE_KEY + userId;
+        redisTemplate.delete(cacheKey);
     }
 
     @Override
@@ -223,6 +270,9 @@ public class UserServiceImpl implements UserService{
         if (userNode != null) {
             userNode.setExchangeSchool(null);
             userNodeRepository.save(userNode);
+
+            String cacheKey = USER_PROFILE_KEY + userId;
+            redisTemplate.delete(cacheKey);
         }
     }    
 
@@ -233,5 +283,8 @@ public class UserServiceImpl implements UserService{
         UserNode userNode = userNodeRepository.findByUserId(userId);
         userNode.setOriginSchool(originSchool);
         userNodeRepository.save(userNode);
+
+        String cacheKey = USER_PROFILE_KEY + userId;
+        redisTemplate.delete(cacheKey);
     }
 }

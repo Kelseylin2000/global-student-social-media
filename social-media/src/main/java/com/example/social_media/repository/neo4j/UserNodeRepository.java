@@ -5,8 +5,8 @@ import com.example.social_media.dto.user.TargetUserProfileDto;
 import com.example.social_media.model.node.UserNode;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
-import java.util.List;
 import java.util.Set;
+import java.util.List;
 
 public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
     
