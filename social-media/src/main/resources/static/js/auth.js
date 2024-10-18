@@ -15,9 +15,9 @@ function signIn(event) {
     .then(data => {
         if (data.error) {
             alert('登入失敗: ' + data.error);
-        } else if (data.data && data.data.access_token) {
-            localStorage.setItem('access_token', data.data.access_token);
-            localStorage.setItem('user_id', data.data.user.user_id);
+        } else if (data.data && data.data.accessToken) {
+            localStorage.setItem('accessToken', data.data.accessToken);
+            localStorage.setItem('userId', data.data.user.userId);
             window.location.href = '/chatsession.html'; 
         } else {
             alert('登入失敗: 無法取得 access token。');
@@ -43,9 +43,9 @@ function signUp(event) {
     .then(data => {
         if (data.error) {
             alert('註冊失敗: ' + data.error); 
-        } else if (data.data && data.data.access_token) {
-            localStorage.setItem('access_token', data.data.access_token);
-            localStorage.setItem('user_id', data.data.user.user_id);
+        } else if (data.data && data.data.accessToken) {
+            localStorage.setItem('accessToken', data.data.accessToken);
+            localStorage.setItem('userId', data.data.user.userId);
             window.location.href = '/chatsession.html';
         } else {
             alert('註冊失敗: 無法取得 access token。');

@@ -1,0 +1,386 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f2f5;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+header {
+    background-color: #1e3d59;
+    color: #fff;
+    padding: 15px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+header .brand {
+    display: flex;
+    align-items: center;
+}
+header .brand img {
+    height: 40px;
+    margin-right: 10px;
+}
+header .brand h1 {
+    margin: 0;
+    font-size: 24px;
+}
+header .saved-button {
+    background-color: #ff6e40;
+    color: #fff;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.3s;
+}
+header .saved-button img {
+    width: 20px;
+    height: 20px;
+    margin-right: 5px;
+}
+header .saved-button:hover {
+    background-color: #e65c34;
+}
+main {
+    width: 60%;
+    margin: 30px auto;
+}
+.post-form, .comment-form, .modal-content {
+    background-color: #fff;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.post-form h2, .modal-content h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 20px;
+    color: #1e3d59;
+}
+.post-form textarea, .comment-form textarea, .modal-content textarea {
+    width: 97%;
+    padding: 15px;
+    margin-bottom: 15px;
+    resize: vertical;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+}
+.tag-selection {
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+}
+.tag-selection button {
+    background-color: #e4e6eb;
+    color: #050505;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 12px;
+    margin: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+.tag-selection button.selected {
+    background-color: #1e3d59;
+    color: #fff;
+}
+.post-form .image-upload, .modal-content .image-upload {
+    margin-bottom: 15px;
+}
+.image-upload {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.3s, background-color 0.3s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.image-upload:hover {
+    border-color: #1e3d59;
+    background-color: #f9fafb;
+}
+.image-upload input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+.image-upload span {
+    font-weight: bold;
+    color: #1e3d59;
+    margin-bottom: 10px;
+    pointer-events: none; /* 防止文字接收點擊事件 */
+}
+.image-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+    justify-content: center;
+    pointer-events: none; /* 防止預覽圖片接收點擊事件 */
+}
+.image-preview img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+.image-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+    justify-content: center;
+}
+.image-preview img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+.btn-primary {
+    background-color: #ff6e40;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+.btn-primary:hover {
+    background-color: #e65c34;
+}
+.post {
+    background-color: #fff;
+    padding: 20px;
+    margin-bottom: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: background-color 0.3s;
+    position: relative;
+}
+.post:hover {
+    background-color: #f9fafb;
+}
+.post-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.post-header img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin-right: 15px;
+    object-fit: cover;
+}
+.post-header .author-info {
+    font-size: 14px;
+    color: #555;
+}
+.post-header .author-info h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #1e3d59;
+}
+.post-header .author-info p {
+    margin: 3px 0 0 0;
+    font-size: 12px;
+    color: #888;
+}
+.post-content {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 15px;
+}
+.post-tags {
+    margin-bottom: 15px;
+}
+.post-tags span {
+    background-color: #e4e6eb;
+    color: #050505;
+    border-radius: 20px;
+    padding: 5px 10px;
+    margin-right: 5px;
+    font-size: 12px;
+    display: inline-block;
+}
+.post-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+    justify-content: center;
+}
+.post-images img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+.post-actions {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+}
+.post-actions button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: transform 0.2s;
+}
+.post-actions button:hover {
+    transform: scale(1.2);
+}
+.post-actions button img {
+    width: 20px;
+    height: 20px;
+}
+.comments-section {
+    margin-top: 15px;
+}
+.comments-section h4 {
+    margin-bottom: 10px;
+    color: #1e3d59;
+}
+.comment {
+    background-color: #f0f2f5;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+}
+.comment p {
+    margin-top: 0;
+    font-size: 14px;
+    color: #333;
+}
+.comment-actions {
+    margin-top: 10px;
+    text-align: right;
+}
+.comment-actions button {
+    background-color: transparent;
+    border: none;
+    color: #f02849;
+    cursor: pointer;
+    font-size: 14px;
+    transition: color 0.3s;
+}
+.comment-actions button:hover {
+    color: #d91420;
+}
+/* Modal 樣式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 999;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 20px;
+    border-radius: 8px;
+    width: 60%;
+    position: relative;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+.modal-content h2 {
+    margin-top: 0;
+    color: #1e3d59;
+}
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background-color: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #888;
+    transition: color 0.3s;
+}
+.modal-close:hover {
+    color: #1e3d59;
+}
+/* Loading Spinner */
+.spinner {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #1e3d59;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+    margin: 50px auto;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+/* No Saved Posts Message */
+.no-saved-posts {
+    text-align: center;
+    color: #888;
+    font-size: 16px;
+    margin-top: 20px;
+}
+/* Improved Comment Form */
+.comment-form textarea {
+    height: 60px;
+}
+.comment-form button {
+    float: right;
+}
+
+.comment-form {
+    padding-bottom: 70px;
+}
+
+/* 修正留言區域的 UI 問題 */
+.comments-section .comment p {
+    margin: 0;
+}
+
+/* 調整編輯貼文的樣式 */
+.edit-form {
+    background-color: #fff;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+/* 調整標籤選擇和圖片上傳的順序 */
+.post-form .tag-selection, .edit-form .tag-selection {
+    order: 2;
+}
+.post-form .image-upload, .edit-form .image-upload {
+    order: 1;
+}

@@ -1,10 +1,10 @@
 var stompClient = null;
 var currentChatId = null;
-var userId = localStorage.getItem('user_id');
+var userId = localStorage.getItem('userId');
 var currentFriendId = '';
 var currentFriendName = '';
-var accessToken = localStorage.getItem('access_token');
-var userNameCache = {}; 
+var accessToken = localStorage.getItem('accessToken');
+var userNameCache = {};
 
 function connect() {
     var socket = new SockJS('/ws?token=' + accessToken);
@@ -18,23 +18,6 @@ function connect() {
     });
 }
 
-function getUserNameByUserId(userId, callback) {
-    if (userNameCache[userId]) {
-        callback(userNameCache[userId]);
-    } else {
-        axios.get(`/api/1.0/users/${userId}/username`)
-        .then(function(response) {
-            var userName = response.data.data;
-            userNameCache[userId] = userName;
-            callback(userName);
-        })
-        .catch(function(error) {
-            console.error('Error loading user name:', error);
-            callback('Unknown');
-        });
-    }
-}
-
 function loadSessions() {
     axios.get('/api/1.0/chat/sessions', {
         headers: { 'Authorization': 'Bearer ' + accessToken }
@@ -44,45 +27,35 @@ function loadSessions() {
         var sessionList = document.getElementById('sessionList');
         sessionList.innerHTML = '';
 
-        var userNamePromises = sessions.map(function(session) {
+        sessions.forEach(function(session) {
             var friendId = session.participants.find(id => id != userId);
-            return new Promise(function(resolve, reject) {
-                getUserNameByUserId(friendId, function(userName) {
-                    resolve({ session: session, userName: userName });
-                });
+            var friendName = session.participantsName.find((name, index) => session.participants[index] == friendId);
+
+            userNameCache[friendId] = friendName;
+
+            var latestMessageDate = new Date(session.latestMessage.createdAt).toLocaleDateString('zh-TW');
+            var latestMessageTime = new Date(session.latestMessage.createdAt).toLocaleTimeString('zh-TW', {
+                hour: '2-digit',
+                minute: '2-digit'
             });
-        });
 
-        Promise.all(userNamePromises).then(function(results) {
-            results.forEach(function(result) {
-                var session = result.session;
-                var userName = result.userName;
-                var latestMessageDate = new Date(session.latestMessage.createdAt).toLocaleDateString('zh-TW');
-                var latestMessageTime = new Date(session.latestMessage.createdAt).toLocaleTimeString('zh-TW', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-
-                var sessionElement = document.createElement('div');
-                sessionElement.className = 'sessionItem';
-                sessionElement.innerHTML = `
-                    <div class="sessionDetailsContainer">
-                        <div class="sessionDetails">
-                            <div class="participantId">${userName}</div>
-                            <div class="messageTime">${latestMessageDate} ${latestMessageTime}</div>
-                        </div>
-                        <div class="latestMessage">${session.latestMessage.content}</div>
+            var sessionElement = document.createElement('div');
+            sessionElement.className = 'sessionItem';
+            sessionElement.innerHTML = `
+                <div class="sessionDetailsContainer">
+                    <div class="sessionDetails">
+                        <div class="participantId">${friendName}</div>
+                        <div class="messageTime">${latestMessageDate} ${latestMessageTime}</div>
                     </div>
-                `;
+                    <div class="latestMessage">${session.latestMessage.content}</div>
+                </div>
+            `;
 
-                sessionElement.onclick = function() {
-                    openChat(session.chatId, session.participants.find(id => id != userId));
-                };
+            sessionElement.onclick = function() {
+                openChat(session.chatId, friendId);
+            };
 
-                sessionList.appendChild(sessionElement);
-            });
-        }).catch(function(error) {
-            console.error('Error loading user names:', error);
+            sessionList.appendChild(sessionElement);
         });
     })
     .catch(function(error) {
