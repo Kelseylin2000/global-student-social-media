@@ -2,6 +2,7 @@ package com.example.social_media.service.implement;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.redis.core.RedisTemplate;
@@ -274,6 +275,18 @@ public class UserServiceImpl implements UserService{
                 userNode.setInterests(interestNodes);
                 String detailInfoKey = DETAIL_INFO_KEY + userId;
                 redisTemplate.delete(detailInfoKey);
+
+                String mutualInfoPatternStart = MUTUAL_INFO_KEY + userId + ":*";
+                Set<String> mutualInfoKeysStart = redisTemplate.keys(mutualInfoPatternStart);
+                if (mutualInfoKeysStart != null && !mutualInfoKeysStart.isEmpty()) {
+                    redisTemplate.delete(mutualInfoKeysStart);
+                }
+
+                String mutualInfoPatternEnd = MUTUAL_INFO_KEY + "*:" + userId;
+                Set<String> mutualInfoKeysEnd = redisTemplate.keys(mutualInfoPatternEnd);
+                if (mutualInfoKeysEnd != null && !mutualInfoKeysEnd.isEmpty()) {
+                    redisTemplate.delete(mutualInfoKeysEnd);
+                }
             }
             userNodeRepository.save(userNode);
         }
