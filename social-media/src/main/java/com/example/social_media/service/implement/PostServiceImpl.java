@@ -45,7 +45,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.concurrent.TimeUnit;
 import java.util.Comparator;
-import java.util.PriorityQueue;
+import java.util.Collections;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -522,7 +522,7 @@ public class PostServiceImpl implements PostService{
         List<Post> recentPosts = postRepository.findAllByOrderByCreatedAtDesc(pageable);
     
         Map<Long, BasicInfo> posterMap = getPosterInfo(recentPosts);
-
+    
         List<String> interestedSchools = user.getInterestedSchools().stream()
             .map(SchoolNode::getSchoolName)
             .collect(Collectors.toList());
@@ -539,22 +539,23 @@ public class PostServiceImpl implements PostService{
             .filter(Objects::nonNull)
             .collect(Collectors.toList());
     
-        PriorityQueue<ScoredPostDto> topPosts = new PriorityQueue<>(Comparator.comparingDouble(ScoredPostDto::getScore));
-        for (ScoredPostDto scoredPost : scoredPosts) {
-            topPosts.offer(scoredPost);
-            if (topPosts.size() > size) {
-                topPosts.poll(); 
-            }
+        scoredPosts.sort((sp1, sp2) -> Double.compare(sp2.getScore(), sp1.getScore()));
+    
+        int total = scoredPosts.size();
+        int fromIndex = page * size;
+        int toIndex = Math.min(fromIndex + size, total);
+    
+        List<PostWithoutCommentsDto> paginatedPosts;
+    
+        if (fromIndex >= total) {
+            paginatedPosts = Collections.emptyList();
+        } else {
+            paginatedPosts = scoredPosts.subList(fromIndex, toIndex).stream()
+                .map(scoredPost -> getPostWithoutComments(scoredPost.getPost()))
+                .collect(Collectors.toList());
         }
     
-        List<ScoredPostDto> sortedTopPosts = new ArrayList<>(topPosts);
-        sortedTopPosts.sort((sp1, sp2) -> Double.compare(sp2.getScore(), sp1.getScore()));
-    
-        List<PostWithoutCommentsDto> paginatedPosts = sortedTopPosts.stream()
-            .map(scoredPost -> getPostWithoutComments(scoredPost.getPost()))
-            .collect(Collectors.toList());
-    
-        return new PageImpl<>(paginatedPosts, PageRequest.of(page, size), paginatedPosts.size());
+        return new PageImpl<>(paginatedPosts, PageRequest.of(page, size), total);
     }
 
     private Map<String, Integer> getUserTagCounts(Long userId) {

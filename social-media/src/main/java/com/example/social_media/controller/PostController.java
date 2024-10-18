@@ -108,7 +108,7 @@ public class PostController {
     @GetMapping("/recommended")
     public ResponseEntity<Page<PostWithoutCommentsDto>> getRecommendedPosts(
             @RequestParam(defaultValue = "0") int page, 
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "7") int size) {
 
         Page<PostWithoutCommentsDto> recommendedPosts = postService.getRecommendedPosts(page, size);
         return new ResponseEntity<>(recommendedPosts, HttpStatus.OK);
