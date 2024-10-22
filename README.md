@@ -1,18 +1,12 @@
 # GoGlobal
 a platform specifically designed for exchange and international students.
 
+Check out the demo of the project here:  
+[Watch Demo on YouTube](https://www.youtube.com/watch?v=bzceF2sja3w)
+
 ## Project Overview
 
-The platform addresses two major pain points that students face during the overseas study process:
-
-### Pain Point 1: Scattered Information
-There is a lack of a single, dedicated platform where students can find unified information about studying abroad. As a result, students spend a significant amount of time searching and gathering data from multiple sources.
-
-### Pain Point 2: Lack of Connections
-Students often struggle to connect with others from their target schools. This makes it challenging to find answers quickly or build a network before or during their study abroad experience.
-
-### Solution
-GoGlobal solves these problems by providing phase and goal settings that allow students to receive personalized recommendations for both information and companion connections throughout the application and study process.
+Students studying abroad often face two key challenges: scattered information and difficulty connecting with peers from the same target schools. GoGlobal addresses these issues by offering phase and goal settings, which provide personalized recommendations for relevant information and student connections throughout the application and study process.
 
 ## Features
 
@@ -46,6 +40,8 @@ GoGlobal solves these problems by providing phase and goal settings that allow s
   - Friend list and friend request list
   - Real-time chat rooms
 
+## System Architecture
+![System Architecture](./images/system-architecture.png)
 
 ## Tech Stack
 
@@ -78,4 +74,6 @@ GoGlobal solves these problems by providing phase and goal settings that allow s
 - **AWS CloudFront CDN**: Used to accelerate content delivery globally, optimizing static asset loading speeds and improving user experience.
 - **AWS EC2**: Hosts the backend application with systemd ensuring automatic startup and stable operation of backend services.
 - **AWS RDS**: A managed relational database service used to handle structured data with high availability and automated backups.
-- **AWS ElastiCache (Redis)**: A managed Redis service that provides caching and accelerates database queries, improving overall application performance.
+- **AWS ElastiCache (Redis)**: A managed Redis service used to store user information and browsing history, providing caching and accelerating database queries, which improves overall application performance.
+
+
