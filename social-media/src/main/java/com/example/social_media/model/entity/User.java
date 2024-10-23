@@ -18,17 +18,11 @@ public class User {
     private Long userId;
 
     private String provider;
-
     private String name;
-
     private String email;
-
     private String password;
-
     private String introduction;
-
     private String fromSchoolEmail;
-
     private String toSchoolEmail;
 
     @ManyToOne
@@ -40,8 +34,6 @@ public class User {
     private School toSchool;
 
     private LocalDateTime lastLogin;
-
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
 }

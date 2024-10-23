@@ -1,6 +1,7 @@
 package com.example.social_media.service.implement;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -16,10 +17,8 @@ public class FriendServiceImpl implements FriendService{
 
     private final UserNodeRepository userNodeRepository;
     private final AuthService authService;
-
     private final RedisTemplate<String, Object> redisTemplate;
     private static final String MUTUAL_INFO_KEY = "user:mutualInfo:";
-
 
     public FriendServiceImpl(UserNodeRepository userNodeRepository, AuthService authService, RedisTemplate<String, Object> redisTemplate){
         this.userNodeRepository = userNodeRepository;
@@ -29,58 +28,51 @@ public class FriendServiceImpl implements FriendService{
 
     @Override
     public List<UserFriendResultDto> getPendingFriendRequests() {
-        Long userId = authService.getCurrentUserId();
-        return userNodeRepository.findPendingFriendRequests(userId);
+        Long currentUserId = authService.getCurrentUserId();
+        return userNodeRepository.findPendingFriendRequests(currentUserId);
     }
 
     @Override
     public List<UserFriendResultDto> getUserFriends() {
-        Long userId = authService.getCurrentUserId();
-        return userNodeRepository.findFriendsInfo(userId);
+        Long currentUserId = authService.getCurrentUserId();
+        return userNodeRepository.findFriendsInfo(currentUserId);
     }
     
     @Override
-    public UserFriendResultDto sendFriendRequest(Long userId, Long targetUserId){
-        userNodeRepository.sendFriendRequest(userId, targetUserId);
-
-        String mutualInfoKey1 = MUTUAL_INFO_KEY + userId + ":" + targetUserId;
-        redisTemplate.delete(mutualInfoKey1);
-        String mutualInfoKey2 = MUTUAL_INFO_KEY + targetUserId + ":" + userId;
-        redisTemplate.delete(mutualInfoKey2);
-
-        return getUserFriendResultDto(userId);
+    public UserFriendResultDto sendFriendRequest(Long currentUserId, Long targetUserId){
+        userNodeRepository.sendFriendRequest(currentUserId, targetUserId);
+        clearMutualInfoCache(currentUserId, targetUserId);
+        return getUserFriendResultDto(currentUserId);
     }
 
     @Override
-    public UserFriendResultDto acceptFriendRequest(Long userId, Long targetUserId){
-        userNodeRepository.acceptFriendRequest(userId, targetUserId);
-
-        String mutualInfoKey1 = MUTUAL_INFO_KEY + userId + ":" + targetUserId;
-        redisTemplate.delete(mutualInfoKey1);
-        String mutualInfoKey2 = MUTUAL_INFO_KEY + targetUserId + ":" + userId;
-        redisTemplate.delete(mutualInfoKey2);
-
-        return getUserFriendResultDto(userId);
+    public UserFriendResultDto acceptFriendRequest(Long currentUserId, Long targetUserId){
+        userNodeRepository.acceptFriendRequest(currentUserId, targetUserId);
+        clearMutualInfoCache(currentUserId, targetUserId);
+        return getUserFriendResultDto(currentUserId);
     }
 
-    private UserFriendResultDto getUserFriendResultDto(Long userId){
-        UserNode senderNode = userNodeRepository.findByUserId(userId);
+    private void clearMutualInfoCache(Long currentUserId, Long targetUserId) {
+        String mutualInfoKey1 = MUTUAL_INFO_KEY + currentUserId + ":" + targetUserId;
+        redisTemplate.delete(mutualInfoKey1);
+        String mutualInfoKey2 = MUTUAL_INFO_KEY + targetUserId + ":" + currentUserId;
+        redisTemplate.delete(mutualInfoKey2);
+    }
+
+    private UserFriendResultDto getUserFriendResultDto(Long currentUserId){
+        UserNode senderNode = userNodeRepository.findByUserId(currentUserId);
         return new UserFriendResultDto(
-            userId,
+            currentUserId,
             senderNode.getName(),
             senderNode.getPhase(),
-            senderNode.getOriginSchool() != null ? senderNode.getOriginSchool().getSchoolName() : null,
-            senderNode.getExchangeSchool() != null ? senderNode.getExchangeSchool().getSchoolName() : null
+            Optional.ofNullable(senderNode.getOriginSchool()).map(school -> school.getSchoolName()).orElse(null),
+            Optional.ofNullable(senderNode.getExchangeSchool()).map(school -> school.getSchoolName()).orElse(null)
         );
     }
 
     @Override
-    public void rejectFriendRequest(Long userId, Long targetUserId){
-        userNodeRepository.rejectFriendRequest(userId, targetUserId);
-
-        String mutualInfoKey1 = MUTUAL_INFO_KEY + userId + ":" + targetUserId;
-        redisTemplate.delete(mutualInfoKey1);
-        String mutualInfoKey2 = MUTUAL_INFO_KEY + targetUserId + ":" + userId;
-        redisTemplate.delete(mutualInfoKey2);
+    public void rejectFriendRequest(Long currentUserId, Long targetUserId){
+        userNodeRepository.rejectFriendRequest(currentUserId, targetUserId);
+        clearMutualInfoCache(currentUserId, targetUserId);
     }
 }

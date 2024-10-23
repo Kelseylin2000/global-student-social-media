@@ -15,8 +15,12 @@ public interface PostService {
     PostWithoutCommentsDto createPost(PostRequestDto postRequest, MultipartFile[] imagesFiles);
     PostWithoutCommentsDto updatePost(String postId, PostRequestDto postRequest, MultipartFile[] imagesFiles);
     void deletePost(String postId);
-    PostWithCommentDto getPostWithCommentById(String postId);
 
+    Page<PostWithoutCommentsDto> getRecommendedPosts(int page, int size);
+    List<PostWithoutCommentsDto> getPostsByUserId(long userId);
+    List<PostWithoutCommentsDto> getPostsByKeyword(String keyword);
+    PostWithCommentDto getPostWithCommentById(String postId);
+    
     CommentDto addComment(String postId, CommentDto commentDto);
     void deleteComment(String commentId);
 
@@ -24,15 +28,8 @@ public interface PostService {
     void unsavePost(String postId);
     List<PostWithoutCommentsDto> getSavedPosts();
 
-    void incrementPostViews(String postId);
-    void logBrowsingHistory(String postId);
-    void updateUserTagCount(String postId);
+    void recordBrowsingHistory(String postId);
 
     void batchUpdatePostViews();
     void batchSaveBrowsingHistory();
-
-    Page<PostWithoutCommentsDto> getRecommendedPosts(int page, int size);
-    List<PostWithoutCommentsDto> getPostsByUserId(long userId);
-
-    List<PostWithoutCommentsDto> getPostsByKeyword(String keyword);
 }

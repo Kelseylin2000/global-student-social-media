@@ -16,8 +16,10 @@ import jakarta.persistence.Id;
 @AllArgsConstructor
 @Document(collection = "chat_sessions")
 public class ChatSession {
+
     @Id
     private String id;
+    
     @Indexed
     private String chatId;
     private List<Long> participants;

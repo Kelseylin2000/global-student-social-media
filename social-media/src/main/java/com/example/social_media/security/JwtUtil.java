@@ -22,7 +22,6 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private Long expiration;
 
-    // Method to generate JWT token
     public String generateToken(UserDto userDto) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userDto.getUserId());
@@ -37,7 +36,6 @@ public class JwtUtil {
             .compact();
     }
 
-    // Method to parse all claims from the token
     public Claims getAllClaimsFromToken(String token) {
         try {
             return Jwts.parser()
@@ -49,7 +47,6 @@ public class JwtUtil {
         }
     }
 
-    // Method to extract user information from the token
     public UserDto getUserDtoFromToken(String token) {
         Claims claims = getAllClaimsFromToken(token);
         if (claims == null) {
@@ -61,18 +58,15 @@ public class JwtUtil {
         return userDto;
     }
 
-    // Method to validate the token
     public boolean validateToken(String token) {
         Claims claims = getAllClaimsFromToken(token);
         return claims != null && !isTokenExpired(claims);
     }
 
-    // Method to check if the token is expired
     private boolean isTokenExpired(Claims claims) {
         return claims.getExpiration().before(new Date());
     }
 
-    // Method to resolve the token from the HTTP request
     public String resolveToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {

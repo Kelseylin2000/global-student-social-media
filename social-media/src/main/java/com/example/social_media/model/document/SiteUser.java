@@ -16,8 +16,8 @@ public class SiteUser {
 
     @Id
     private String id;
+
     @Indexed
     private Long userId;
-
     private List<String> favorites;
 }

@@ -2,7 +2,6 @@ package com.example.social_media.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,7 +11,7 @@ import com.example.social_media.dto.ApiResponseDto;
 import com.example.social_media.dto.ErrorResponseDto;
 import com.example.social_media.dto.chat.ChatSessionDto;
 import com.example.social_media.dto.chat.MessageDto;
-import com.example.social_media.dto.user.UserDto;
+import com.example.social_media.service.AuthService;
 import com.example.social_media.service.ChatService;
 
 import java.util.List;
@@ -23,9 +22,11 @@ import java.util.List;
 public class ChatController {
 
     private final ChatService chatService;
+    private final AuthService authService;
 
-    public ChatController(ChatService chatService){
+    public ChatController(ChatService chatService, AuthService authService){
         this.chatService = chatService;
+        this.authService = authService;
     }
 
     @GetMapping("/sessions")
@@ -41,8 +42,7 @@ public class ChatController {
                                         @RequestParam int page,
                                         @RequestParam int size) {
 
-        UserDto currentUser = (UserDto) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Long userId = currentUser.getUserId();
+        Long userId = authService.getCurrentUserId();
 
         if (!chatService.isParticipant(userId, chatId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)

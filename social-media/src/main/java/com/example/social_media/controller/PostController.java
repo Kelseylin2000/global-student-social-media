@@ -97,11 +97,7 @@ public class PostController {
 
     @PostMapping("/{postId}/interactions")
     public ResponseEntity<ApiResponseDto<String>> recordPostInteraction(@PathVariable String postId) {
-
-        postService.incrementPostViews(postId);
-        postService.logBrowsingHistory(postId);
-        postService.updateUserTagCount(postId);
-
+        postService.recordBrowsingHistory(postId);
         return ResponseEntity.ok(new ApiResponseDto<>("Interaction recorded successfully"));
     }
 

@@ -1,8 +1,7 @@
 # GoGlobal
 a platform specifically designed for exchange and international students.
 
-Check out the demo of the project here:  
-[Watch Demo on YouTube](https://www.youtube.com/watch?v=bzceF2sja3w)
+Check out the demo of the project here: [Watch Demo on YouTube](https://www.youtube.com/watch?v=bzceF2sja3w)
 
 ## Project Overview
 

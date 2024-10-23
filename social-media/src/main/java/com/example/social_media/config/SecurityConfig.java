@@ -28,9 +28,10 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(requests -> requests
-                // .requestMatchers("/api/1.0/chat/**").authenticated()
-                // .requestMatchers("/api/1.0/friends/**").authenticated()
-                // .requestMatchers("/api/1.0/users/**").authenticated()
+                .requestMatchers("/api/1.0/chat/**").authenticated()
+                .requestMatchers("/api/1.0/friends/**").authenticated()
+                .requestMatchers("/api/1.0/users/**").authenticated()
+                .requestMatchers("/api/1.0/posts/**").authenticated()
                 .anyRequest().permitAll())
             .sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(jwtAuthenticationFilter, AuthorizationFilter.class);

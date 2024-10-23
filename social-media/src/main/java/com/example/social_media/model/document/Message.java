@@ -14,8 +14,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Document(collection = "messages")
 public class Message {
+
     @Id
     private String id;
+    
     @Indexed
     private String chatId;
     private Long senderId;

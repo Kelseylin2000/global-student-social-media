@@ -16,7 +16,6 @@ import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 import com.example.social_media.interceptor.WebSocketAuthInterceptor;
 import com.example.social_media.security.JwtUtil;
 
-
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
@@ -26,7 +25,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${allowed.origins}")
     private String allowedOrigins;
 
-    public WebSocketConfig(JwtUtil jwtUtil){
+    public WebSocketConfig(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
     }
 
@@ -39,14 +38,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+
+        String[] originsArray = allowedOrigins.split(",");
+
         registry.addEndpoint("/ws")
-                .setAllowedOrigins(allowedOrigins, "http://localhost:3000")
+                .setAllowedOrigins(originsArray)
                 .addInterceptors(new WebSocketAuthInterceptor(jwtUtil))
                 .setHandshakeHandler(new DefaultHandshakeHandler() {
                     @Override
                     protected Principal determineUser(ServerHttpRequest request,
-                                                    WebSocketHandler wsHandler,
-                                                    Map<String, Object> attributes) {
+                                                      WebSocketHandler wsHandler,
+                                                      Map<String, Object> attributes) {
                         return (Principal) attributes.get("principal");
                     }
                 })

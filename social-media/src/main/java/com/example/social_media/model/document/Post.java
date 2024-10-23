@@ -16,6 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 @Document(collection = "posts")
 public class Post {
+    
     @Id
     private String id;
 

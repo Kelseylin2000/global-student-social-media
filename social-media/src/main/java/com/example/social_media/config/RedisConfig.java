@@ -20,7 +20,6 @@ import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import io.lettuce.core.ClientOptions;
-import io.lettuce.core.SslOptions;
 import io.lettuce.core.TimeoutOptions;
 
 @Configuration
@@ -43,48 +42,38 @@ public class RedisConfig {
 
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
-        
-        LettuceClientConfiguration clientConfig;
-        RedisStandaloneConfiguration redisStandaloneConfiguration;
+        RedisStandaloneConfiguration redisConfig = createRedisStandaloneConfig();
+        LettuceClientConfiguration clientConfig = createLettuceClientConfig();
 
-        if(sslOrNot){
-            ClientOptions clientOptions = ClientOptions.builder()
-                .autoReconnect(true)
-                .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
-                .timeoutOptions(TimeoutOptions.builder()
-                    .fixedTimeout(Duration.ofMillis(timeout))
-                    .build())
-                .sslOptions(SslOptions.builder()
-                    .jdkSslProvider()
-                    .build())
-                .build();
+        return new LettuceConnectionFactory(redisConfig, clientConfig);
+    }
 
-            clientConfig = LettuceClientConfiguration.builder()
-                .clientOptions(clientOptions)
-                .commandTimeout(Duration.ofMillis(timeout))
-                .useSsl()
-                .build();
+    private RedisStandaloneConfiguration createRedisStandaloneConfig() {
+        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(redisHost, redisPort);
+        if (sslOrNot && redisPassword != null) {
+            redisConfig.setPassword(redisPassword);
+        }
+        return redisConfig;
+    }
 
-            redisStandaloneConfiguration = new RedisStandaloneConfiguration(redisHost, redisPort);
-            redisStandaloneConfiguration.setPassword(redisPassword);
-        }else{
-            ClientOptions clientOptions = ClientOptions.builder()
-                .autoReconnect(true)
-                .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
-                .timeoutOptions(TimeoutOptions.builder()
-                    .fixedTimeout(Duration.ofMillis(timeout))
-                    .build())
-                .build();
+    private LettuceClientConfiguration createLettuceClientConfig() {
+        ClientOptions clientOptions = ClientOptions.builder()
+            .autoReconnect(true)
+            .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
+            .timeoutOptions(TimeoutOptions.builder()
+                .fixedTimeout(Duration.ofMillis(timeout))
+                .build())
+            .build();
 
-            clientConfig = LettuceClientConfiguration.builder()
-                .clientOptions(clientOptions)
-                .commandTimeout(Duration.ofMillis(timeout))
-                .build();
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder configBuilder = LettuceClientConfiguration.builder()
+            .clientOptions(clientOptions)
+            .commandTimeout(Duration.ofMillis(timeout));
 
-            redisStandaloneConfiguration = new RedisStandaloneConfiguration(redisHost, redisPort);
+        if (sslOrNot) {
+            configBuilder.useSsl();
         }
 
-        return new LettuceConnectionFactory(redisStandaloneConfiguration, clientConfig);
+        return configBuilder.build();
     }
 
     @Bean
@@ -102,15 +91,13 @@ public class RedisConfig {
             JsonTypeInfo.As.PROPERTY);
 
         GenericJackson2JsonRedisSerializer jackson2JsonRedisSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
-
-        template.setKeySerializer(new StringRedisSerializer()); 
-        template.setValueSerializer(jackson2JsonRedisSerializer); 
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(jackson2JsonRedisSerializer);
         template.setHashKeySerializer(new StringRedisSerializer());
-        template.setHashValueSerializer(new StringRedisSerializer());
-        
+        template.setHashValueSerializer(jackson2JsonRedisSerializer);
+
         template.setEnableTransactionSupport(true);
         template.afterPropertiesSet();
-
         return template;
     }
 }

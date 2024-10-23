@@ -4,8 +4,11 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,7 @@ import com.example.social_media.repository.neo4j.UserNodeRepository;
 import com.example.social_media.service.AuthService;
 import com.example.social_media.service.ImageService;
 import com.example.social_media.service.PostService;
+import com.example.social_media.service.TagService;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -42,26 +46,22 @@ import java.util.Set;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.concurrent.TimeUnit;
 import java.util.Comparator;
 import java.util.Collections;
 
 import java.time.LocalDateTime;
-import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.time.Duration;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
 @Service
 public class PostServiceImpl implements PostService{
 
     private final AuthService authService;
     private final ImageService imageService;
+    private final TagService tagService;
+
     private final PostRepository postRepository;
     private final UserNodeRepository userNodeRepository;
     private final CommentRepository commentRepository;
@@ -71,7 +71,6 @@ public class PostServiceImpl implements PostService{
     private final RedisTemplate<String, Object> redisTemplate;
     private static final String POST_VIEWS_KEY = "post:views:";
     private static final String BROWSING_HISTORY_KEY = "user:browsing:history:";
-    private static final String USER_TAGS_KEY = "user:tags:";
     private static final String BASIC_INFO_KEY = "user:basicInfo:";
 
     private final MongoTemplate mongoTemplate;
@@ -81,9 +80,10 @@ public class PostServiceImpl implements PostService{
     private static final double mediumCountryScore = 30;
     private static final double tagWeight = 0.5;
 
-    public PostServiceImpl(AuthService authService, ImageService imageService, PostRepository postRepository, UserNodeRepository userNodeRepository, CommentRepository commentRepository, SiteUserRepository siteUserRepository, BrowsingHistoryRepository browsingHistoryRepository, RedisTemplate<String, Object> redisTemplate, MongoTemplate mongoTemplate){
+    public PostServiceImpl(AuthService authService, ImageService imageService, TagService tagService, PostRepository postRepository, UserNodeRepository userNodeRepository, CommentRepository commentRepository, SiteUserRepository siteUserRepository, BrowsingHistoryRepository browsingHistoryRepository, RedisTemplate<String, Object> redisTemplate, MongoTemplate mongoTemplate){
         this.authService = authService;
         this.imageService = imageService;
+        this.tagService = tagService;
         this.postRepository = postRepository;
         this.userNodeRepository = userNodeRepository;
         this.commentRepository = commentRepository;
@@ -97,7 +97,6 @@ public class PostServiceImpl implements PostService{
     public PostWithoutCommentsDto createPost(PostRequestDto postRequest, MultipartFile[] imagesFiles){
         
         Long userId = authService.getCurrentUserId();
-
         List<String> imageUrls = null;
 
         if (imagesFiles != null && imagesFiles.length != 0) {
@@ -120,8 +119,9 @@ public class PostServiceImpl implements PostService{
 
     @Override
     public PostWithoutCommentsDto updatePost(String postId, PostRequestDto postRequest, @RequestPart(value = "imagesFiles", required = false) MultipartFile[] imagesFiles){
-        Long userId = authService.getCurrentUserId();
         
+        Long userId = authService.getCurrentUserId();
+
         Post existingPost = postRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("Post not found with id: " + postId));
 
@@ -167,86 +167,95 @@ public class PostServiceImpl implements PostService{
             throw new AccessDeniedException("You are not the owner of this post");
         }
 
+        List<String> images = post.getImages();
+        if (images != null && !images.isEmpty()) {
+            images.forEach(imageService::deleteImage);
+        }
+
         postRepository.delete(post);
     }
 
     @Override
-    public PostWithCommentDto getPostWithCommentById(String postId) {
+    public Page<PostWithoutCommentsDto> getRecommendedPosts(int page, int size) {
+        Long currentUserId = authService.getCurrentUserId();
+        UserNode user = userNodeRepository.findByUserId(currentUserId);
+        Map<String, Integer> userTagCounts = tagService.getUserTagCounts(currentUserId);
     
+        Pageable pageable = PageRequest.of(0, 1000);
+        List<Post> recentPosts = postRepository.findAllByOrderByCreatedAtDesc(pageable);
+    
+        Map<Long, BasicInfo> posterMap = getPosterInfo(recentPosts);
+    
+        List<String> interestedSchools = user.getInterestedSchools().stream()
+            .map(SchoolNode::getSchoolName)
+            .collect(Collectors.toList());
+    
+        List<ScoredPostDto> scoredPosts = recentPosts.parallelStream()
+            .map(post -> {
+                BasicInfo poster = posterMap.get(post.getUserId());
+                if (poster != null) {
+                    double score = calculateScore(post, poster, user, userTagCounts, interestedSchools);
+                    return new ScoredPostDto(post, score);
+                }
+                return null;
+            })
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+    
+        scoredPosts.sort((sp1, sp2) -> Double.compare(sp2.getScore(), sp1.getScore()));
+    
+        int total = scoredPosts.size();
+        int fromIndex = page * size;
+        int toIndex = Math.min(fromIndex + size, total);
+    
+        List<PostWithoutCommentsDto> paginatedPosts;
+    
+        if (fromIndex >= total) {
+            paginatedPosts = Collections.emptyList();
+        } else {
+            paginatedPosts = scoredPosts.subList(fromIndex, toIndex).stream()
+                .map(scoredPost -> getPostWithoutComments(scoredPost.getPost()))
+                .collect(Collectors.toList());
+        }
+    
+        return new PageImpl<>(paginatedPosts, PageRequest.of(page, size), total);
+    }
+
+    @Override
+    public List<PostWithoutCommentsDto> getPostsByUserId(long userId) {
+        List<Post> posts = postRepository.findByUserId(userId);
+        return posts.stream()
+                    .sorted(Comparator.comparing(Post::getCreatedAt).reversed())
+                    .map(this::getPostWithoutComments)
+                    .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PostWithoutCommentsDto> getPostsByKeyword(String keyword){
+        List<Post> posts = postRepository.findByContentContaining(keyword);
+        return posts.stream()
+                    .map(this::getPostWithoutComments)
+                    .collect(Collectors.toList());
+    }
+
+    @Override
+    public PostWithCommentDto getPostWithCommentById(String postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("Post not found with id: " + postId));
     
-        String userCacheKey = BASIC_INFO_KEY + post.getUserId();
-        BasicInfo cachedBasicInfo = (BasicInfo) redisTemplate.opsForValue().get(userCacheKey);
+        BasicInfo postUserInfo = getOrSetBasicInfo(post.getUserId());
     
-        if (cachedBasicInfo == null) {
-            UserNode userNode = userNodeRepository.findByUserId(post.getUserId());
-            if (userNode == null) {
-                throw new EntityNotFoundException("User not found with id: " + post.getUserId());
-            }
-    
-            cachedBasicInfo = new BasicInfo(
-                userNode.getName(),
-                userNode.getPhase(),
-                userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null,
-                userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null,
-                userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getNationId() : null
-            );
-    
-            redisTemplate.opsForValue().set(userCacheKey, cachedBasicInfo, Duration.ofHours(12));
-        }
-    
-        PostWithCommentDto postWithCommentDto = new PostWithCommentDto();
-        postWithCommentDto.setPostId(post.getId());
-        postWithCommentDto.setUserId(post.getUserId());
-        postWithCommentDto.setName(cachedBasicInfo.getName());
-        postWithCommentDto.setPhase(cachedBasicInfo.getPhase());
-        postWithCommentDto.setOriginSchoolName(cachedBasicInfo.getOriginSchoolName());
-        postWithCommentDto.setExchangeSchoolName(cachedBasicInfo.getExchangeSchoolName());
-    
-        postWithCommentDto.setContent(post.getContent());
-        postWithCommentDto.setImages(imageService.addImagePrefix(post.getImages()));
-        postWithCommentDto.setCreatedAt(post.getCreatedAt());
-        postWithCommentDto.setUpdatedAt(post.getUpdatedAt());
-        postWithCommentDto.setTags(post.getTags());
-        postWithCommentDto.setViews(post.getViews());
+        PostWithCommentDto postWithCommentDto = createPostWithCommentDto(post, postUserInfo);
     
         List<Comment> comments = commentRepository.findByPostId(postId);
-        List<CommentDto> commentDtos = comments.stream().map(comment -> {
-            String commentUserCacheKey = BASIC_INFO_KEY + comment.getUserId();
-            BasicInfo commentUserInfo = (BasicInfo) redisTemplate.opsForValue().get(commentUserCacheKey);
-    
-            if (commentUserInfo == null) {
-                UserNode commentUserNode = userNodeRepository.findByUserId(comment.getUserId());
-                if (commentUserNode != null) {
-                    commentUserInfo = new BasicInfo(
-                        commentUserNode.getName(),
-                        commentUserNode.getPhase(),
-                        commentUserNode.getOriginSchool() != null ? commentUserNode.getOriginSchool().getSchoolName() : null,
-                        commentUserNode.getExchangeSchool() != null ? commentUserNode.getExchangeSchool().getSchoolName() : null,
-                        commentUserNode.getExchangeSchool() != null ? commentUserNode.getExchangeSchool().getNationId() : null
-                    );
-                    redisTemplate.opsForValue().set(commentUserCacheKey, commentUserInfo, Duration.ofHours(12));
-                }
-            }
-    
-            String name = commentUserInfo != null ? commentUserInfo.getName() : "Unknown";
-    
-            return new CommentDto(
-                comment.getId(),
-                comment.getUserId(),
-                name,
-                comment.getContent(),
-                comment.getTimestamp()
-            );
-        }).collect(Collectors.toList());
+        List<CommentDto> commentDtos = convertToCommentDtoList(comments);
     
         postWithCommentDto.setComments(commentDtos);
         postWithCommentDto.setCommentCount((long) commentDtos.size());
     
         return postWithCommentDto;
     }
-    
+        
     @Override
     public CommentDto addComment(String postId, CommentDto commentDto) {
         
@@ -313,7 +322,6 @@ public class PostServiceImpl implements PostService{
     public List<PostWithoutCommentsDto> getSavedPosts() {
         
         Long userId = authService.getCurrentUserId();
-
         SiteUser user = siteUserRepository.findByUserId(userId);
 
         if (user == null) {
@@ -330,73 +338,17 @@ public class PostServiceImpl implements PostService{
                 .collect(Collectors.toList());
     }
 
-    private PostWithoutCommentsDto getPostWithoutComments(Post post) {
-
-        String userCacheKey = BASIC_INFO_KEY + post.getUserId();
-        BasicInfo cachedBasicInfo = (BasicInfo) redisTemplate.opsForValue().get(userCacheKey);
-    
-        if (cachedBasicInfo == null) {
-            UserNode userNode = userNodeRepository.findByUserId(post.getUserId());
-            if (userNode == null) {
-                throw new EntityNotFoundException("UserNode not found for userId: " + post.getUserId());
-            }
-    
-            cachedBasicInfo = new BasicInfo(
-                userNode.getName(),
-                userNode.getPhase(),
-                userNode.getOriginSchool() != null ? userNode.getOriginSchool().getSchoolName() : null,
-                userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getSchoolName() : null,
-                userNode.getExchangeSchool() != null ? userNode.getExchangeSchool().getNationId() : null
-            );
-    
-            redisTemplate.opsForValue().set(userCacheKey, cachedBasicInfo, Duration.ofHours(12));
-        }
-    
-        Long commentCount = commentRepository.countByPostId(post.getId());
-    
-        PostWithoutCommentsDto postWithoutCommentsDto = new PostWithoutCommentsDto();
-        postWithoutCommentsDto.setPostId(post.getId());
-        postWithoutCommentsDto.setUserId(post.getUserId());
-        postWithoutCommentsDto.setName(cachedBasicInfo.getName());
-        postWithoutCommentsDto.setPhase(cachedBasicInfo.getPhase());
-        postWithoutCommentsDto.setOriginSchoolName(cachedBasicInfo.getOriginSchoolName());
-        postWithoutCommentsDto.setExchangeSchoolName(cachedBasicInfo.getExchangeSchoolName());
-        postWithoutCommentsDto.setContent(post.getContent());
-        postWithoutCommentsDto.setImages(imageService.addImagePrefix(post.getImages()));
-        postWithoutCommentsDto.setCreatedAt(post.getCreatedAt());
-        postWithoutCommentsDto.setUpdatedAt(post.getUpdatedAt());
-        postWithoutCommentsDto.setTags(post.getTags());
-        postWithoutCommentsDto.setViews(post.getViews());
-        postWithoutCommentsDto.setCommentCount(commentCount);
-    
-        return postWithoutCommentsDto;
-    }
-        
     @Override
-    public void incrementPostViews(String postId){
+    public void recordBrowsingHistory(String postId){
 
-        String redisKey = POST_VIEWS_KEY + postId;
-
-        Object currentViewsObj = redisTemplate.opsForValue().get(redisKey);
-        Long currentViews;
-    
-        if (currentViewsObj instanceof Integer) {
-            currentViews = ((Integer) currentViewsObj).longValue();
-        } else if (currentViewsObj instanceof Long) {
-            currentViews = (Long) currentViewsObj;
-        } else {
-            currentViews = fetchAndSetPostViewsFromDB(postId);
-        }
-
-        redisTemplate.opsForValue().increment(redisKey, 1L);
-    }
-
-    private Long fetchAndSetPostViewsFromDB(String postId) {
+        Long userId = authService.getCurrentUserId();
         Post post = postRepository.findById(postId)
             .orElseThrow(() -> new EntityNotFoundException("Post not found with id: " + postId));
-        Long views = post.getViews() != null ? post.getViews() : 0L;
-        redisTemplate.opsForValue().set(POST_VIEWS_KEY + postId, views);
-        return views;
+
+        incrementPostViews(postId);
+        logBrowsingHistory(postId, userId);
+
+        tagService.updateUserTagCount(userId, post.getTags());
     }
 
     @Override
@@ -425,18 +377,6 @@ public class PostServiceImpl implements PostService{
                 redisTemplate.delete(key);
             }
         }
-    }    
-
-    @Override
-    public void logBrowsingHistory(String postId){
-
-        Long userId = authService.getCurrentUserId();
-        
-        String redisKey = BROWSING_HISTORY_KEY + userId;
-        String timestampStr = LocalDateTime.now().toString();
-        BrowsingHistoryDto browsingHistory = new BrowsingHistoryDto(userId, postId, timestampStr);
-
-        redisTemplate.opsForList().rightPush(redisKey, browsingHistory);
     }
 
     @Override
@@ -472,122 +412,124 @@ public class PostServiceImpl implements PostService{
         }
     }
 
-    @Override
-    public void updateUserTagCount(String postId) {
+    private BasicInfo getOrSetBasicInfo(Long userId) {
+        String userCacheKey = BASIC_INFO_KEY + userId;
+        BasicInfo cachedBasicInfo = (BasicInfo) redisTemplate.opsForValue().get(userCacheKey);
+    
+        if (cachedBasicInfo == null) {
+            UserNode userNode = userNodeRepository.findByUserId(userId);
+            if (userNode == null) {
+                throw new EntityNotFoundException("User not found with id: " + userId);
+            }
+    
+            cachedBasicInfo = new BasicInfo(
+                    userNode.getName(),
+                    userNode.getPhase(),
+                    Optional.ofNullable(userNode.getOriginSchool()).map(school -> school.getSchoolName()).orElse(null),
+                    Optional.ofNullable(userNode.getExchangeSchool()).map(school -> school.getSchoolName()).orElse(null),
+                    Optional.ofNullable(userNode.getExchangeSchool()).map(school -> school.getNationId()).orElse(null)
+            );
+    
+            redisTemplate.opsForValue().set(userCacheKey, cachedBasicInfo, Duration.ofHours(12));
+        }
+    
+        return cachedBasicInfo;
+    }
+    
+    private PostWithCommentDto createPostWithCommentDto(Post post, BasicInfo basicInfo) {
+        PostWithCommentDto dto = new PostWithCommentDto();
+        dto.setPostId(post.getId());
+        dto.setUserId(post.getUserId());
+        dto.setName(basicInfo.getName());
+        dto.setPhase(basicInfo.getPhase());
+        dto.setOriginSchoolName(basicInfo.getOriginSchoolName());
+        dto.setExchangeSchoolName(basicInfo.getExchangeSchoolName());
+        dto.setContent(post.getContent());
+        dto.setImages(imageService.addImagePrefix(post.getImages()));
+        dto.setCreatedAt(post.getCreatedAt());
+        dto.setUpdatedAt(post.getUpdatedAt());
+        dto.setTags(post.getTags());
+        dto.setViews(post.getViews());
+        return dto;
+    }
+    
+    private List<CommentDto> convertToCommentDtoList(List<Comment> comments) {
+        return comments.stream().map(comment -> {
+            BasicInfo commentUserInfo = getOrSetBasicInfo(comment.getUserId());
+            String name = commentUserInfo != null ? commentUserInfo.getName() : "Unknown";
+    
+            return new CommentDto(
+                    comment.getId(),
+                    comment.getUserId(),
+                    name,
+                    comment.getContent(),
+                    comment.getTimestamp()
+            );
+        }).collect(Collectors.toList());
+    }
 
-        Long userId = authService.getCurrentUserId();
+    private PostWithoutCommentsDto getPostWithoutComments(Post post) {
 
+        BasicInfo cachedBasicInfo = getOrSetBasicInfo(post.getUserId());
+
+        Long commentCount = commentRepository.countByPostId(post.getId());
+    
+        return createPostWithoutCommentsDto(post, cachedBasicInfo, commentCount);
+    }
+
+    private PostWithoutCommentsDto createPostWithoutCommentsDto(Post post, BasicInfo basicInfo, Long commentCount) {
+        PostWithoutCommentsDto dto = new PostWithoutCommentsDto();
+        dto.setPostId(post.getId());
+        dto.setUserId(post.getUserId());
+        dto.setName(basicInfo.getName());
+        dto.setPhase(basicInfo.getPhase());
+        dto.setOriginSchoolName(basicInfo.getOriginSchoolName());
+        dto.setExchangeSchoolName(basicInfo.getExchangeSchoolName());
+        dto.setContent(post.getContent());
+        dto.setImages(imageService.addImagePrefix(post.getImages()));
+        dto.setCreatedAt(post.getCreatedAt());
+        dto.setUpdatedAt(post.getUpdatedAt());
+        dto.setTags(post.getTags());
+        dto.setViews(post.getViews());
+        dto.setCommentCount(commentCount);
+    
+        return dto;
+    }
+        
+    private void incrementPostViews(String postId){
+
+        String redisKey = POST_VIEWS_KEY + postId;
+
+        Object currentViewsObj = redisTemplate.opsForValue().get(redisKey);
+        Long currentViews;
+    
+        if (currentViewsObj instanceof Integer) {
+            currentViews = ((Integer) currentViewsObj).longValue();
+        } else if (currentViewsObj instanceof Long) {
+            currentViews = (Long) currentViewsObj;
+        } else {
+            currentViews = fetchAndSetPostViewsFromDB(postId);
+        }
+
+        redisTemplate.opsForValue().increment(redisKey, 1L);
+    }
+
+    private Long fetchAndSetPostViewsFromDB(String postId) {
         Post post = postRepository.findById(postId)
             .orElseThrow(() -> new EntityNotFoundException("Post not found with id: " + postId));
-
-        String today = LocalDate.now().toString();
-        String redisKey = USER_TAGS_KEY + userId + ":" + today;
-
-        post.getTags().forEach(tag -> redisTemplate.opsForHash().increment(redisKey, tag, 1));
-
-        redisTemplate.expire(redisKey, 5, TimeUnit.DAYS);
-
-        // updateUserTotalTagCounts(userId, post.getTags());
+        Long views = post.getViews() != null ? post.getViews() : 0L;
+        redisTemplate.opsForValue().set(POST_VIEWS_KEY + postId, views);
+        return views;
     }
 
-    // private void updateUserTotalTagCounts(Long userId) {
-    //     String redisTotalKey = USER_TOTAL_TAGS_KEY + userId;
-    
-    //     Map<String, Integer> tagCounts = new HashMap<>();
+    private void logBrowsingHistory(String postId, Long userId){
+        
+        String redisKey = BROWSING_HISTORY_KEY + userId;
+        String timestampStr = LocalDateTime.now().toString();
+        BrowsingHistoryDto browsingHistory = new BrowsingHistoryDto(userId, postId, timestampStr);
 
-    //     for (int i = 0; i < 5; i++) {
-    //         String date = LocalDate.now().minusDays(i).toString();
-    //         String redisKey = USER_TAGS_KEY + userId + ":" + date;
-    //         Map<Object, Object> dailyTags = redisTemplate.opsForHash().entries(redisKey);
-
-    //         int weight = 5 - i;
-    //         for (Map.Entry<Object, Object> entry : dailyTags.entrySet()) {
-    //             String tag = entry.getKey().toString();
-    //             int count = Integer.parseInt(entry.getValue().toString());
-    //             tagCounts.put(tag, tagCounts.getOrDefault(tag, 0) + count * weight);
-    //         }
-    //     }
-
-    //     return tagCounts;
-    // }
-
-
-    @Override
-    public Page<PostWithoutCommentsDto> getRecommendedPosts(int page, int size) {
-        Long currentUserId = authService.getCurrentUserId();
-        UserNode user = userNodeRepository.findByUserId(currentUserId);
-        Map<String, Integer> userTagCounts = getUserTagCounts(currentUserId);
-    
-        Pageable pageable = PageRequest.of(0, 1000);
-        List<Post> recentPosts = postRepository.findAllByOrderByCreatedAtDesc(pageable);
-    
-        Map<Long, BasicInfo> posterMap = getPosterInfo(recentPosts);
-    
-        List<String> interestedSchools = user.getInterestedSchools().stream()
-            .map(SchoolNode::getSchoolName)
-            .collect(Collectors.toList());
-    
-        List<ScoredPostDto> scoredPosts = recentPosts.parallelStream()
-            .map(post -> {
-                BasicInfo poster = posterMap.get(post.getUserId());
-                if (poster != null) {
-                    double score = calculateScore(post, poster, user, userTagCounts, interestedSchools);
-                    return new ScoredPostDto(post, score);
-                }
-                return null;
-            })
-            .filter(Objects::nonNull)
-            .collect(Collectors.toList());
-    
-        scoredPosts.sort((sp1, sp2) -> Double.compare(sp2.getScore(), sp1.getScore()));
-    
-        int total = scoredPosts.size();
-        int fromIndex = page * size;
-        int toIndex = Math.min(fromIndex + size, total);
-    
-        List<PostWithoutCommentsDto> paginatedPosts;
-    
-        if (fromIndex >= total) {
-            paginatedPosts = Collections.emptyList();
-        } else {
-            paginatedPosts = scoredPosts.subList(fromIndex, toIndex).stream()
-                .map(scoredPost -> getPostWithoutComments(scoredPost.getPost()))
-                .collect(Collectors.toList());
-        }
-    
-        return new PageImpl<>(paginatedPosts, PageRequest.of(page, size), total);
+        redisTemplate.opsForList().rightPush(redisKey, browsingHistory);
     }
-
-    private Map<String, Integer> getUserTagCounts(Long userId) {
-        Map<String, Integer> tagCounts = new HashMap<>();
-        List<String> redisKeys = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
-            String date = LocalDate.now().minusDays(i).toString();
-            String redisKey = USER_TAGS_KEY + userId + ":" + date;
-            redisKeys.add(redisKey);
-        }
-    
-        List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-            redisKeys.forEach(key -> {
-                byte[] rawKey = redisTemplate.getStringSerializer().serialize(key);
-                connection.hGetAll(rawKey);
-            });
-            return null;
-        });
-    
-        for (int i = 0; i < results.size(); i++) {
-            @SuppressWarnings("unchecked")
-            Map<String, String> dailyTags = (Map<String, String>) results.get(i);
-            int weight = 5 - i;
-            for (Map.Entry<String, String> entry : dailyTags.entrySet()) {
-                String tag = entry.getKey();
-                int count = Integer.parseInt(entry.getValue());
-                tagCounts.put(tag, tagCounts.getOrDefault(tag, 0) + count * weight);
-            }
-        }
-        return tagCounts;
-    }
-    
 
     private Map<Long, BasicInfo> getPosterInfo(List<Post> posts) {
         Set<Long> userIds = posts.stream()
@@ -634,15 +576,12 @@ public class PostServiceImpl implements PostService{
     private double calculateScore(Post post, BasicInfo poster, UserNode user, Map<String, Integer> userTagCounts, List<String> interestedSchools) {
         double score = 0;
     
-        // Time decay factor
         long timeDifference = ChronoUnit.SECONDS.between(post.getCreatedAt(), LocalDateTime.now());
         double timeScore = Math.exp(-lambda * timeDifference);
         score += timeScore;
     
-        // School-related scoring
         score += calculateSchoolScore(poster, user, interestedSchools);
     
-        // Tag-based scoring
         double tagScore = 0;
         List<String> tags = post.getTags();
         if (tags != null) {
@@ -676,22 +615,5 @@ public class PostServiceImpl implements PostService{
             }
         }
         return schoolScore;
-    }
-
-    @Override
-    public List<PostWithoutCommentsDto> getPostsByUserId(long userId) {
-        List<Post> posts = postRepository.findByUserId(userId);
-        return posts.stream()
-                    .sorted(Comparator.comparing(Post::getCreatedAt).reversed())
-                    .map(this::getPostWithoutComments)
-                    .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<PostWithoutCommentsDto> getPostsByKeyword(String keyword){
-        List<Post> posts = postRepository.findByContentContaining(keyword);
-        return posts.stream()
-                    .map(this::getPostWithoutComments)
-                    .collect(Collectors.toList());
     }
 }
