@@ -3,6 +3,8 @@ a platform specifically designed for exchange and international students.
 
 Check out the demo of the project here: [Watch Demo on YouTube](https://www.youtube.com/watch?v=bzceF2sja3w)
 
+[![homepage](./images/screenshot-find-info-page.png)](https://www.youtube.com/watch?v=bzceF2sja3w)
+
 ## Project Overview
 
 Students studying abroad often face two key challenges: scattered information and difficulty connecting with peers from the same target schools. GoGlobal addresses these issues by offering phase and goal settings, which provide personalized recommendations for relevant information and student connections throughout the application and study process.
